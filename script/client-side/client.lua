@@ -1,20 +1,9 @@
-local Config = config or {} -- Wait, needs LoadResourceFile or shared_script to provide Config. Let's do a safe load.
-Config = LoadResourceFile(GetCurrentResourceName(), "config/config.lua")
-if Config then
-    local chunk = load(Config)
-    if chunk then
-        Config = chunk()
-    end
-end
-
-if not Config then Config = {} end
-
+local Config = Config or {}
 local open = false
 local pauseMenu = false
 local miraConfig = { ativo = false }
 local redesSociais = { instagram = "", tiktok = "", youtube = "" }
 
--- KVP Load (Cache do Jogo)
 Citizen.CreateThread(function()
     local savedMira = GetResourceKvpString("mri_esc:mira")
     if savedMira then
@@ -46,31 +35,53 @@ local function GetPlayersOnline()
     return 1
 end
 
---------------------------------------------------------------------------------
--- Esconder mira nativa
---------------------------------------------------------------------------------
 CreateThread(function()
     while true do
         Wait(0)
-        DisableControlAction(0, 200, true) -- Bloqueia ESC nativo
+        DisableControlAction(0, 200, true)
         if miraConfig and miraConfig.ativo then
             HideHudComponentThisFrame(14)
         end
     end
 end)
 
---------------------------------------------------------------------------------
--- Menu principal (ESC)
---------------------------------------------------------------------------------
+local function BuildTabsConfig()
+    local defaultTabs = {
+        { id = 'inicio', label = 'INÍCIO', icon = 'fa-bars', action = 'inicio' },
+        { id = 'mapa', label = 'MAPA', icon = 'fa-map', action = 'mapa' },
+        { id = 'customizacao', label = 'CUSTOMIZAÇÃO', icon = 'fa-user', action = 'customizacao' },
+        { id = 'config', label = 'CONFIGURAÇÕES', icon = 'fa-cog', action = 'config' }
+    }
+
+    if Config.Tabs then
+        for _, tab in ipairs(Config.Tabs) do
+            table.insert(defaultTabs, tab)
+        end
+    end
+
+    return defaultTabs
+end
+
+local canOpenMenu = false
+
+Citizen.SetTimeout(2000, function()
+    canOpenMenu = true
+end)
+
 RegisterCommand("open_menu", function()
-    print("[MRI_ESC DEBUG LUA] Command open_menu executed!")
+    if not canOpenMenu then
+        return
+    end
+
     if not LocalPlayer.state.isLoggedIn or LocalPlayer.state.inArena or LocalPlayer.state.isDead or LocalPlayer.state.invOpen then
-        print("[MRI_ESC DEBUG LUA] Blocked by state flags!")
+        return
+    end
+
+    if open then
         return
     end
 
     if not pauseMenu and not IsPauseMenuActive() then
-        print("[MRI_ESC DEBUG LUA] Sending showMenu to NUI...")
         local playersOn = GetPlayersOnline()
         local playerData = GetPlayerData()
         
@@ -101,48 +112,40 @@ RegisterCommand("open_menu", function()
             id = id,
             money = money,
             bank = bank,
-            job = jobText
+            job = jobText,
+            tabs = BuildTabsConfig()
         })
 
+        Wait(50)
+        
         SetNuiFocus(true, true)
         StartScreenEffect("MenuMGSelectionIn", 0, true)
         TriggerEvent("hud:Active", false)
         open = true
-        print("[MRI_ESC DEBUG LUA] Menu successfully opened.")
-    else
-        print("[MRI_ESC DEBUG LUA] Blocked by pauseMenu or IsPauseMenuActive!")
     end
 end)
 RegisterKeyMapping("open_menu", "Abrir Esc Menu", "keyboard", "ESCAPE")
 
 local function closeMenu(ignoreFrontend)
-    print("[MRI_ESC DEBUG LUA] Executing closeMenu function...")
-    -- Fecha a UI instantaneamente
     SendNUIMessage({ action = "hideMenu" })
     StopScreenEffect("MenuMGSelectionIn")
-    print("[MRI_ESC DEBUG LUA] Stopped screen effect MenuMGSelectionIn!")
     open = false
     TriggerEvent("hud:Active", true)
 
-    -- FIX DEFINITIVO: O FiveM "vaza" a tecla ESC de volta para o jogo se o foco NUI for tirado 
-    -- exatamente no mesmo milissegundo em que o ESC está soltando (keyup).
     CreateThread(function()
-        if not ignoreFrontend then SetFrontendActive(false) end -- Aborta qualquer pause nativo que tente abrir
-        Wait(150) -- "Come" o evento físico do ESC na UI invisível
+        if not ignoreFrontend then SetFrontendActive(false) end
+        Wait(150)
         SetNuiFocus(false, false)
-        if not ignoreFrontend then SetFrontendActive(false) end -- Garante duplo kill no menu nativo
-        print("[MRI_ESC DEBUG LUA] Thread delayed focus release completed.")
+        if not ignoreFrontend then SetFrontendActive(false) end
     end)
 end
 
 RegisterNUICallback("close", function(_, cb)
-    print("[MRI_ESC DEBUG LUA] NUI Callback 'close' received!")
     closeMenu()
     if cb then cb({ success = true }) end
 end)
 
 RegisterNUICallback("mapa", function(_, cb)
-    print("[MRI_ESC DEBUG LUA] NUI Callback 'mapa' received!")
     closeMenu(true)
     Wait(100)
     ActivateFrontendMenu(GetHashKey("FE_MENU_VERSION_MP_PAUSE"), 0, -1)
@@ -150,16 +153,12 @@ RegisterNUICallback("mapa", function(_, cb)
 end)
 
 RegisterNUICallback("config", function(_, cb)
-    print("[MRI_ESC DEBUG LUA] NUI Callback 'config' received!")
     closeMenu(true)
     Wait(100)
     ActivateFrontendMenu(GetHashKey("FE_MENU_VERSION_LANDING_MENU"), 0, -1)
     if cb then cb({ success = true }) end
 end)
 
---------------------------------------------------------------------------------
--- Comandos
---------------------------------------------------------------------------------
 RegisterNUICallback("consultComandos", function(_, cb)
     if cb then cb({ tabela = Config.Comandos or {} }) end
 end)
@@ -171,9 +170,6 @@ RegisterNUICallback("executarComando", function(data, cb)
     if cb then cb({ success = true }) end
 end)
 
---------------------------------------------------------------------------------
--- Mira
---------------------------------------------------------------------------------
 RegisterNUICallback("consultMira", function(_, cb)
     if cb then cb({ tabela = miraConfig }) end
 end)
@@ -181,12 +177,10 @@ end)
 RegisterNUICallback("salvarMira", function(data, cb)
     miraConfig = data
     SetResourceKvp("mri_esc:mira", json.encode(data))
+    SendNUIMessage({ action = "miraData", mira = data })
     if cb then cb({ success = true }) end
 end)
 
---------------------------------------------------------------------------------
--- Redes sociais
---------------------------------------------------------------------------------
 RegisterNUICallback("consultRedesSociais", function(_, cb)
     if cb then cb({ success = true, instagram = redesSociais.instagram, tiktok = redesSociais.tiktok, youtube = redesSociais.youtube }) end
 end)
@@ -195,4 +189,30 @@ RegisterNUICallback("salvarRedesSociais", function(data, cb)
     redesSociais = data or {}
     SetResourceKvp("mri_esc:redes", json.encode(redesSociais))
     if cb then cb({ success = true }) end
+end)
+
+exports('AddTab', function(tab)
+    if not Config.Tabs then Config.Tabs = {} end
+    table.insert(Config.Tabs, tab)
+end)
+
+exports('RemoveTab', function(tabId)
+    if Config.Tabs then
+        for i, tab in ipairs(Config.Tabs) do
+            if tab.id == tabId then
+                table.remove(Config.Tabs, i)
+                break
+            end
+        end
+    end
+end)
+
+exports('GetMiraConfig', function()
+    return miraConfig
+end)
+
+exports('SetMiraConfig', function(config)
+    miraConfig = config
+    SetResourceKvp("mri_esc:mira", json.encode(config))
+    SendNUIMessage({ action = "miraData", mira = config })
 end)
