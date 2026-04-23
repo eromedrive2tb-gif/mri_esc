@@ -53,4 +53,17 @@ Config.Mira = {
 Config.AllowSupport = true
 Config.AllowCommands = true
 
+--------------------------------------------------------------------------------
+-- Admins do Painel VIP (identificadores do jogador)
+-- Adicione seus identificadores para garantir acesso ao painel admin
+-- Exemplo: "license:abc123", "steam:110000112345678", "fivem:123456"
+-- Para descobrir seus identificadores, abra o menu e veja o console do servidor
+--------------------------------------------------------------------------------
+
+Config.AdminIds = {
+    -- "license:SEU_LICENSE_AQUI",
+    -- "steam:SEU_STEAM_AQUI",
+    -- "fivem:SEU_FIVEM_AQUI",
+}
+
 return Config

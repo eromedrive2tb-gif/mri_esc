@@ -146,6 +146,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.store('ui', {
         isOpen: false,
         activeTab: 'inicio',
+        isAdmin: false,
         player: { 
             name: '', id: '', job: 'Desempregado', 
             money: 0, bank: 0, playersOn: 0 
@@ -173,35 +174,59 @@ document.addEventListener('alpine:init', () => {
             coins: 0,
             benefits: [],
             paycheckTime: 0,
-            paycheckMax: 1800 // 30 mins
+            paycheckMax: 1800, // 30 mins em segundos
+            // --- Métricas de tempo ---
+            vipSince: null,    // timestamp UNIX
+            vipExpires: null,  // timestamp UNIX ou null (permanente)
+            daysActive: 0,
+            daysLeft: null,    // null = permanente
+            isExpired: false,
+            // --- Métricas de ganhos ---
+            totalEarned: 0,
+            paycheckCount: 0,
+            // --- Info do personagem ---
+            charName: '',
+            charJob: '',
+            citizenId: ''
         },
         paycheckInterval: null,
 
         // --- Actions ---
         init(data) {
+            if (!data) return;
             this.player = { ...this.player, ...data };
-            if (data.vip) {
+            if (data && data.vip) {
                 this.updateVip(data.vip);
             }
         },
 
         updateVip(data) {
-            this.vip.tier = data.tier || 'nenhum';
-            this.vip.label = data.label || 'Sem VIP';
-            this.vip.salary = data.salary || 0;
-            this.vip.inventory = data.inventory || 0;
-            this.vip.coins = data.coins || 0;
-            this.vip.benefits = Array.isArray(data.benefits) ? data.benefits : [];
-            
+            this.vip.tier           = data.tier     || 'nenhum';
+            this.vip.label          = data.label    || 'Sem VIP';
+            this.vip.salary         = data.salary   || 0;
+            this.vip.inventory      = data.inventory|| 0;
+            this.vip.coins          = data.coins    || 0;
+            this.vip.benefits       = Array.isArray(data.benefits) ? data.benefits : [];
+            // Métricas de tempo
+            this.vip.vipSince       = data.vipSince   ?? null;
+            this.vip.vipExpires     = data.vipExpires ?? null;
+            this.vip.daysActive     = data.daysActive || 0;
+            this.vip.daysLeft       = data.daysLeft   ?? null; // null=permanente
+            this.vip.isExpired      = data.isExpired  || false;
+            // Métricas de ganhos
+            this.vip.totalEarned    = data.totalEarned   || 0;
+            this.vip.paycheckCount  = data.paycheckCount || 0;
+            // Personagem
+            this.vip.charName       = data.charName  || '';
+            this.vip.charJob        = data.charJob   || '';
+            this.vip.citizenId      = data.citizenId || '';
+
             if (data.interval) {
                 this.vip.paycheckMax = data.interval * 60;
             }
-
-            // Sincroniza com o tempo real do servidor
             if (data.timeLeft !== undefined) {
                 this.vip.paycheckTime = data.timeLeft;
             }
-
             this.startPaycheckTimer();
         },
 
@@ -228,6 +253,18 @@ document.addEventListener('alpine:init', () => {
             const m = Math.floor(seconds / 60);
             const s = seconds % 60;
             return `${m}:${s < 10 ? '0' : ''}${s}`;
+        },
+
+        formatDate(unixTs) {
+            if (!unixTs || unixTs === 0) return 'Não registrada';
+            const d = new Date(unixTs * 1000);
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        },
+
+        formatDateTime(unixTs) {
+            if (!unixTs || unixTs === 0) return 'Não registrada';
+            const d = new Date(unixTs * 1000);
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         },
         
         getPaycheckProgress() {
@@ -330,12 +367,15 @@ const App = {
                     bank: data.bank,
                     playersOn: data.playersOn
                 };
-                if (data.vip) {
-                    store.updateVip(data.vip);
-                }
-                if (data.tabs) store.tabs = data.tabs;
+                if (data && data.vip) store.updateVip(data.vip);
+                if (data && data.tabs) store.tabs = data.tabs;
+                store.isAdmin   = (data && data.isAdmin) || false;
                 store.activeTab = 'inicio';
-                store.isOpen = true;
+                store.isOpen    = true;
+                break;
+
+            case 'updateAdmin':
+                store.isAdmin = data.isAdmin === true;
                 break;
 
             case 'hideMenu':
@@ -417,3 +457,176 @@ function miraComponent() {
         validateColor() { this.updateColor(); }
     };
 }
+
+// ─────────────────────────────────────────────────────────────
+//  Admin VIP Panel Component
+// ─────────────────────────────────────────────────────────────
+function adminVipPanel() {
+    return {
+        list: [],
+        search: '',
+        searchResults: [],
+        searching: false,
+        loading: false,
+        toast: null,
+
+        // Modal: grant/extend
+        modal: {
+            open: false,
+            mode: 'grant',     // 'grant' | 'extend'
+            citizenId: '',
+            playerName: '',
+            tier: 'tier1',
+            duration: '30',    // dias; '0' = permanente
+        },
+
+        // Confirmação revogação
+        confirm: {
+            open: false,
+            citizenId: '',
+            playerName: '',
+        },
+
+        // ── init ──────────────────────────────────────────────
+        async init() {
+            await this.loadList();
+        },
+
+        // ── helpers ───────────────────────────────────────────
+        showToast(type, msg) {
+            this.toast = { type, msg };
+            setTimeout(() => { this.toast = null; }, 3500);
+        },
+
+        formatDate(ts) {
+            if (!ts || ts === 0) return 'Não registrada';
+            return new Date(ts * 1000).toLocaleDateString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+        },
+
+        formatMoney(n) { return Utils.formatMoney(n); },
+
+        statusClass(row) {
+            if (!row.expires_at) return 'st-perm';
+            const now   = Math.floor(Date.now() / 1000);
+            const diff  = row.expires_at - now;
+            if (diff <= 0)          return 'st-expired';
+            if (diff <= 7 * 86400)  return 'st-warn';
+            return 'st-ok';
+        },
+
+        statusLabel(row) {
+            if (!row.expires_at) return '∞ Permanente';
+            const now  = Math.floor(Date.now() / 1000);
+            const diff = row.expires_at - now;
+            if (diff <= 0) return 'EXPIRADO';
+            const days = Math.floor(diff / 86400);
+            return `${days}d restantes`;
+        },
+
+        filtered() {
+            const q = this.search.toLowerCase().trim();
+            if (!q) return this.list;
+            return this.list.filter(r =>
+                r.citizenid.toLowerCase().includes(q) ||
+                (r.name && r.name.toLowerCase().includes(q))
+            );
+        },
+
+        // ── load full list ─────────────────────────────────────
+        async loadList() {
+            this.loading = true;
+            const res = await Nui.post('vip:admin:list');
+            this.list    = (res && res.data) ? res.data : [];
+            this.loading = false;
+        },
+
+        // ── player search (for grant to non-VIP) ──────────────
+        async searchPlayer() {
+            if (this.search.length < 2) return;
+            this.searching = true;
+            const res = await Nui.post('vip:admin:search', { query: this.search });
+            this.searchResults = Array.isArray(res) ? res : [];
+            this.searching = false;
+        },
+
+        // ── open grant modal ───────────────────────────────────
+        openGrant(citizenId, name) {
+            this.modal = {
+                open: true,
+                mode: 'grant',
+                citizenId,
+                playerName: name || citizenId,
+                tier: 'tier1',
+                duration: '30',
+            };
+        },
+
+        // ── open extend modal ──────────────────────────────────
+        openExtend(row) {
+            this.modal = {
+                open: true,
+                mode: 'extend',
+                citizenId: row.citizenid,
+                playerName: row.name || row.citizenid,
+                tier: row.tier,
+                duration: '30',
+            };
+        },
+
+        // ── confirm grant / extend ─────────────────────────────
+        async confirmGrant() {
+            const days = parseInt(this.modal.duration) || 0;
+            let res;
+
+            if (this.modal.mode === 'grant') {
+                res = await Nui.post('vip:admin:grant', {
+                    citizenId:    this.modal.citizenId,
+                    tier:         this.modal.tier,
+                    durationDays: days,
+                });
+            } else {
+                res = await Nui.post('vip:admin:extend', {
+                    citizenId: this.modal.citizenId,
+                    days:      days,
+                });
+            }
+
+            this.modal.open = false;
+            if (res && res.success) {
+                this.showToast('success',
+                    this.modal.mode === 'grant'
+                        ? `VIP concedido a ${this.modal.playerName}!`
+                        : `VIP de ${this.modal.playerName} renovado por ${days} dias!`
+                );
+                await this.loadList();
+            } else {
+                this.showToast('error', (res && res.error) || 'Erro desconhecido');
+            }
+        },
+
+        // ── open revoke confirm ────────────────────────────────
+        openRevoke(row) {
+            this.confirm = {
+                open: true,
+                citizenId:  row.citizenid,
+                playerName: row.name || row.citizenid,
+            };
+        },
+
+        // ── execute revoke ─────────────────────────────────────
+        async executeRevoke() {
+            const res = await Nui.post('vip:admin:revoke', {
+                citizenId: this.confirm.citizenId,
+            });
+            this.confirm.open = false;
+            if (res && res.success) {
+                this.showToast('success', `VIP de ${this.confirm.playerName} revogado.`);
+                await this.loadList();
+            } else {
+                this.showToast('error', (res && res.error) || 'Erro ao revogar');
+            }
+        },
+    };
+}

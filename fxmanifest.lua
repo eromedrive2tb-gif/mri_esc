@@ -1,16 +1,24 @@
 fx_version 'cerulean'
 game 'gta5'
 
+dependencies {
+    'oxmysql',
+    'ox_lib',
+    'qbx_core'
+}
+
 shared_scripts {
     '@ox_lib/init.lua',
     'config/config.lua'
 }
 
 client_scripts {
+    'modules/vip-manager/client.lua',
     'script/client-side/*.lua'
 }
 
 server_scripts {
+    'modules/vip-manager/server.lua',
     'script/server-side/*.lua'
 }
 

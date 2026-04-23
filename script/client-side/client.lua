@@ -106,16 +106,20 @@ RegisterCommand("open_menu", function()
             end
         end
 
+        -- isAdmin vem direto do servidor junto com os dados VIP
+        local isAdmin = vipData and vipData.isAdmin == true
+
         SendNUIMessage({
-            action = "showMenu",
+            action    = "showMenu",
             playersOn = playersOn,
-            nome = nome,
-            id = id,
-            money = money,
-            bank = bank,
-            job = jobText,
-            vip = vipData,
-            tabs = BuildTabsConfig()
+            nome      = nome,
+            id        = id,
+            money     = money,
+            bank      = bank,
+            job       = jobText,
+            vip       = vipData,
+            isAdmin   = isAdmin,
+            tabs      = BuildTabsConfig()
         })
 
         Wait(50)
