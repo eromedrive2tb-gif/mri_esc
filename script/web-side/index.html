@@ -1,354 +1,480 @@
+<!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="UTF-8">
-		<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css">
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.2/animate.min.css">
-		<link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
-		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
-		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v6.0.0-beta3/css/all.css">
-		<link href="css.css" rel="stylesheet" type="text/css"/>
-	</head>
-	<body x-data="appRoot()">
-		<div class="mira-permanente" id="mira-permanente" 
-			 x-show="store.mira.ativo && !store.isOpen" 
-			 style="display: none;">
-			<canvas id="canvas-mira-permanente"></canvas>
-		</div>
-		<div class="containerFake" id="containerFake" 
-			 x-show="store.isOpen" 
-			 style="display: none;"></div>
-		<div class="container" id="container" 
-			 x-show="store.isOpen" 
-			 style="display: none;" 
-			 x-data="menuComponent()">
-			<div class="header">
-				<div style="width: 120px; height: 120px; margin-left: 3%; display: flex; align-items: center; justify-content: center; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 24px; color: var(--cor-principal);">MRI</div>
-				<div class="header-direito">
-					<div class="header-botoes">
-						<template x-for="tab in store.tabs" :key="tab.id">
-							<div 
-								class="botao-header" 
-								:class="{ 'active': store.activeTab === tab.id }"
-								@click="handleTabClick(tab)"
-							>
-								<i :class="'fa-solid ' + tab.icon"></i>
-								<span x-text="tab.label"></span>
-							</div>
-						</template>
-						<div class="botao-header" @click="Nui.post('close')">
-							<i class="fa-solid fa-right-from-bracket"></i> SAIR
-						</div>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+	<link href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+	<link href="css.css" rel="stylesheet" type="text/css"/>
+</head>
+<body x-data="appRoot()">
+
+	<!-- Permanent Crosshair Overlay -->
+	<div class="mira-permanente" id="mira-permanente"
+		 x-show="store.mira.ativo && !store.isOpen"
+		 style="display: none;">
+		<canvas id="canvas-mira-permanente"></canvas>
+	</div>
+
+	<!-- Cinematic Backdrop -->
+	<div class="containerFake" id="containerFake" x-show="store.isOpen" style="display: none;"></div>
+
+	<!-- ===== MAIN APP WRAPPER ===== -->
+	<div class="app-wrapper" id="container"
+		 x-show="store.isOpen"
+		 style="display: none;"
+		 x-data="menuComponent()">
+
+		<!-- ========== SIDEBAR ========== -->
+		<aside class="sidebar">
+
+			<!-- Logo -->
+			<div class="sidebar-logo">
+				<div class="logo-wordmark">MRI</div>
+				<div class="logo-subtitle">ROLEPLAY</div>
+			</div>
+
+			<!-- Player Profile -->
+			<div class="sidebar-profile">
+				<div class="profile-avatar-wrap">
+					<img src="assets/imagem-invalida-user.png" alt="Avatar" class="profile-avatar-img">
+					<div class="profile-vip-crown" x-show="store.vip.tier !== 'nenhum'" x-transition>
+						<i class="fa-solid fa-crown"></i>
 					</div>
 				</div>
-				<div class="header-direito-dentro">
-					<div class="jogadoresonline">
-						<i class="fa-solid fa-users"></i>
-						<span x-text="store.player.playersOn"></span>
+				<div class="profile-name" x-text="store.player.name"></div>
+				<div class="profile-id">Cód. <span x-text="store.player.id"></span></div>
+				<div class="profile-job">
+					<i class="fa-solid fa-briefcase"></i>
+					<span x-text="store.player.job"></span>
+				</div>
+			</div>
+
+			<!-- Finances -->
+			<div class="sidebar-finances">
+				<div class="finance-row">
+					<div class="finance-icon"><i class="fa-solid fa-wallet"></i></div>
+					<div class="finance-info">
+						<div class="finance-label">Carteira</div>
+						<div class="finance-value" x-text="store.formatMoney(store.player.money)"></div>
+					</div>
+				</div>
+				<div class="finance-row">
+					<div class="finance-icon bank-icon"><i class="fa-solid fa-building-columns"></i></div>
+					<div class="finance-info">
+						<div class="finance-label">Banco</div>
+						<div class="finance-value" x-text="store.formatMoney(store.player.bank)"></div>
 					</div>
 				</div>
 			</div>
 
-			<div class="container-centro">
-				<div class="container-player" x-show="store.activeTab === 'inicio'">
-					<div class="imagemJogador">
-						<img src="assets/imagem-invalida-user.png" alt="">
-					</div>
-					<div class="nomeJogador">
-						<b x-text="store.player.name"></b> - Nº <span x-text="store.player.id"></span>
-					</div>
-					<div class="jobJogador" style="color: #ccc; font-size: 14px; margin-top: -5px; margin-bottom: 20px; font-weight: 900;">
-						<i class="fa-solid fa-briefcase"></i>
-						<span x-text="store.player.job"></span>
-					</div>
-					<div class="box-container-centro">
-						<div class="item-container-centro">
-							<div class="icone-item-container-centro">
-								<div class="background-icone-item-container-centro"> <i class="fa-solid fa-wallet"></i> </div>
-							</div>
-							<div class="infos-item-container-centro">
-								<div class="nome-item-container-centro">Carteira</div>
-								<div class="valor-item-container-centro" x-text="store.formatMoney(store.player.money)"></div>
-							</div>
+			<!-- Navigation -->
+			<nav class="sidebar-nav">
+				<template x-for="tab in store.tabs" :key="tab.id">
+					<div
+						class="nav-item"
+						:class="{
+							'nav-active': store.activeTab === tab.id,
+							'nav-vip-item': tab.id === 'vip'
+						}"
+						@click="handleTabClick(tab)"
+					>
+						<div class="nav-item-icon">
+							<i :class="'fa-solid ' + tab.icon"></i>
 						</div>
-						<div class="item-container-centro">
-							<div class="icone-item-container-centro">
-								<div class="background-icone-item-container-centro"> <i class="fa-solid fa-building-columns"></i> </div>
-							</div>
-							<div class="infos-item-container-centro">
-								<div class="nome-item-container-centro">Banco</div>
-								<div class="valor-item-container-centro" x-text="store.formatMoney(store.player.bank)"></div>
-							</div>
+						<span class="nav-item-label" x-text="tab.label"></span>
+						<div class="nav-vip-pill" x-show="tab.id === 'vip'">
+							<span x-text="store.vip.tier !== 'nenhum' ? store.vip.label : 'SEJA VIP'"></span>
 						</div>
-						<div class="botao-chamar-suporte"><i class="fa-solid fa-headset"></i> CHAMAR SUPORTE</div>
 					</div>
+				</template>
+			</nav>
+
+			<!-- Footer -->
+			<div class="sidebar-footer">
+				<div class="online-pill">
+					<span class="online-dot"></span>
+					<span x-text="store.player.playersOn + ' online'"></span>
 				</div>
-				
-				<div class="containerOpcoes" x-show="store.activeTab === 'inicio'" x-transition.opacity>
-					<div class="opcoes-modernas-container">
-						<div class="opcao-card" @click="Nui.post('mapa')">
-							<div class="opcao-icone"><i class="fa-solid fa-map"></i></div>
-							<div class="opcao-titulo">MAPA GPS</div>
-							<div class="opcao-desc">Acesse a visão geral da cidade</div>
-						</div>
-
-						<div class="opcao-card" @click="store.activeTab = 'comandos'; store.loadComandos()">
-							<div class="opcao-icone"><i class="fa-solid fa-terminal"></i></div>
-							<div class="opcao-titulo">COMANDOS</div>
-							<div class="opcao-desc">Lista completa de atalhos e animações do seu personagem</div>
-						</div>
-
-						<div class="opcao-card" @click="store.activeTab = 'mira'; store.loadMira()">
-							<div class="opcao-icone"><i class="fa-solid fa-crosshairs"></i></div>
-							<div class="opcao-titulo">CONFIGURAR MIRA</div>
-							<div class="opcao-desc">Edite tamanho, opacidade e o estilo do crosshair do HUD</div>
-						</div>
-					</div>
+				<div class="btn-exit" @click="Nui.post('close')">
+					<i class="fa-solid fa-right-from-bracket"></i> SAIR
 				</div>
-				
-				<div class="container-customizacao" x-show="store.activeTab === 'customizacao'" x-transition.opacity x-init="store.loadRedesSociais()">
-					<div class="titulo-container-caixas">
-						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-user"></i></div>
-						<div class="titulo-titulo-container-caixas">CUSTOMIZAÇÃO</div>
-						<div class="separador-titulo"></div>
-						<div class="descricao-container-caixas">Personalize suas <b>redes sociais</b></div>
-					</div>
-					<div class="container-redes-sociais">
-						<div class="item-rede-social">
-							<div class="label-rede-social">Perfil do Instagram</div>
-							<input type="text" class="input-rede-social" x-model="store.redesSociais.instagram" placeholder="@seu_instagram">
-						</div>
-						<div class="item-rede-social">
-							<div class="label-rede-social">Perfil do Tiktok</div>
-							<input type="text" class="input-rede-social" x-model="store.redesSociais.tiktok" placeholder="@seu_tiktok">
-						</div>
-						<div class="item-rede-social">
-							<div class="label-rede-social">Perfil do Youtube</div>
-							<input type="text" class="input-rede-social" x-model="store.redesSociais.youtube" placeholder="@seu_youtube">
-						</div>
-						<div class="botao-salvar-redes-sociais" @click="store.saveRedesSociais()">
-							<i class="fa-solid fa-floppy-disk"></i>
-							SALVAR
-						</div>
-					</div>
-				</div>
-				
-				<div class="container-mira" x-show="store.activeTab === 'mira'" x-transition.opacity>
-					<div class="titulo-container-caixas">
-						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-crosshairs"></i></div>
-						<div class="titulo-titulo-container-caixas">MIRA</div>
-						<div class="separador-titulo"></div>
-						<div class="descricao-container-caixas">Edite a sua <b>mira</b> externa</div>
-					</div>
-					
-					<div class="conteudo-mira" x-data="miraComponent()">
-						<div class="preview-mira-container">
-							<div class="preview-mira-canvas" id="preview-mira-canvas">
-								<canvas id="canvas-mira-preview"></canvas>
-							</div>
-						</div>
-						
-						<div class="controles-mira">
-							<div class="linha-controle-mira">
-								<div class="item-controle-mira">
-									<div class="label-controle-mira">
-										<i class="fa-solid fa-arrows-left-right"></i>
-										<span>TAMANHO</span>
-									</div>
-									<div class="input-controle-mira">
-										<input type="range" x-model.number="store.mira.tamanho" @input="updateMira()" min="0" max="50" class="slider-mira">
-										<input type="number" x-model.number="store.mira.tamanho" @input="updateMiraNumber('tamanho', 0, 50)" min="0" max="50" class="valor-mira">
-									</div>
-								</div>
-								
-								<div class="item-controle-mira">
-									<div class="label-controle-mira">
-										<i class="fa-solid fa-compress"></i>
-										<span>ESPAÇO CENTRAL</span>
-									</div>
-									<div class="input-controle-mira">
-										<input type="range" x-model.number="store.mira.gap" @input="updateMira()" min="0" max="20" class="slider-mira">
-										<input type="number" x-model.number="store.mira.gap" @input="updateMiraNumber('gap', 0, 20)" min="0" max="20" class="valor-mira">
-									</div>
-								</div>
-							</div>
-							
-							<div class="linha-controle-mira">
-								<div class="item-controle-mira">
-									<div class="label-controle-mira">
-										<i class="fa-solid fa-grip-lines"></i>
-										<span>ESPESSURA</span>
-									</div>
-									<div class="input-controle-mira">
-										<input type="range" x-model.number="store.mira.espessura" @input="updateMira()" min="1" max="10" class="slider-mira">
-										<input type="number" x-model.number="store.mira.espessura" @input="updateMiraNumber('espessura', 1, 10)" min="1" max="10" class="valor-mira">
-									</div>
-								</div>
-								
-								<div class="item-controle-mira">
-									<div class="label-controle-mira">
-										<i class="fa-solid fa-circle-notch"></i>
-										<span>CONTORNO</span>
-									</div>
-									<div class="input-controle-mira">
-										<input type="range" x-model.number="store.mira.outline" @input="updateMira()" min="0" max="5" class="slider-mira">
-										<input type="number" x-model.number="store.mira.outline" @input="updateMiraNumber('outline', 0, 5)" min="0" max="5" class="valor-mira">
-									</div>
-								</div>
-							</div>
-							
-							<div class="linha-controle-mira">
-								<div class="item-controle-mira">
-									<div class="label-controle-mira">
-										<i class="fa-solid fa-palette"></i>
-										<span>COR</span>
-									</div>
-									<div class="input-controle-mira cor-input">
-										<input type="color" x-model="store.mira.cor" @input="updateColor()" class="color-picker-mira">
-										<input type="text" x-model="store.mira.cor" @input="validateColor()" class="hex-mira">
-									</div>
-								</div>
-								
-								<div class="item-controle-mira">
-									<div class="label-controle-mira">
-										<i class="fa-solid fa-eye"></i>
-										<span>OPACIDADE</span>
-									</div>
-									<div class="input-controle-mira">
-										<input type="range" x-model.number="store.mira.opacidade" @input="updateMira()" min="0" max="100" class="slider-mira">
-										<input type="number" x-model.number="store.mira.opacidade" @input="updateMiraNumber('opacidade', 0, 100)" min="0" max="100" class="valor-mira">
-									</div>
-								</div>
-							</div>
-							
-							<div class="linha-controle-mira">
-								<div class="item-controle-mira full-width">
-									<div class="label-controle-mira">
-										<i class="fa-solid fa-circle"></i>
-										<span>ATIVAR</span>
-									</div>
-									<div class="toggle-controle-mira">
-										<label class="toggle-mira">
-											<input type="checkbox" x-model="store.mira.ativo" @change="updateMira()">
-											<span class="toggle-slider"></span>
-										</label>
-									</div>
-								</div>
-								<div class="item-controle-mira full-width">
-									<div class="label-controle-mira">
-										<i class="fa-solid fa-circle"></i>
-										<span>PONTO CENTRAL</span>
-									</div>
-									<div class="toggle-controle-mira">
-										<label class="toggle-mira">
-											<input type="checkbox" x-model="store.mira.dot" @change="updateMira()">
-											<span class="toggle-slider"></span>
-										</label>
-									</div>
-								</div>
-							</div>
-							
-							<div class="botoes-mira">
-								<div class="botao-mira botao-resetar-mira" @click="store.resetMira(); updateMira()">
-									<i class="fa-solid fa-rotate-left"></i>
-									RESETAR
-								</div>
-								<div class="botao-mira botao-salvar-mira" @click="store.saveMira(); updateMira()">
-									<i class="fa-solid fa-floppy-disk"></i>
-									SALVAR
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<div class="container-vip" x-show="store.activeTab === 'vip'" x-transition.opacity>
-					<div class="titulo-container-caixas">
-						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-crown"></i></div>
-						<div class="titulo-titulo-container-caixas">SISTEMA VIP</div>
-						<div class="separador-titulo"></div>
-						<div class="descricao-container-caixas">Gerencie seu <b>status VIP</b> e benefícios</div>
-					</div>
-
-					<div class="conteudo-vip">
-						<div class="vip-header-info">
-							<div class="vip-card main-vip">
-								<div class="vip-card-icon"><i class="fa-solid fa-gem"></i></div>
-								<div class="vip-card-data">
-									<div class="vip-card-label">Plano Atual</div>
-									<div class="vip-card-value" x-text="store.vip.label"></div>
-								</div>
-							</div>
-							<div class="vip-card coins-vip">
-								<div class="vip-card-icon"><i class="fa-solid fa-coins"></i></div>
-								<div class="vip-card-data">
-									<div class="vip-card-label">MRI Coins</div>
-									<div class="vip-card-value" x-text="store.vip.coins"></div>
-								</div>
-							</div>
-							<div class="vip-card salary-vip">
-								<div class="vip-card-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
-								<div class="vip-card-data">
-									<div class="vip-card-label">Salário VIP</div>
-									<div class="vip-card-value" x-text="store.formatMoney(store.vip.salary)"></div>
-								</div>
-							</div>
-						</div>
-
-						<div class="vip-lower-section">
-							<div class="vip-benefits-column">
-								<div class="section-title">SEUS BENEFÍCIOS</div>
-								<div class="benefits-list">
-									<template x-for="benefit in store.vip.benefits" :key="benefit">
-										<div class="benefit-item">
-											<i class="fa-solid fa-check-circle"></i>
-											<span x-text="benefit"></span>
-										</div>
-									</template>
-								</div>
-							</div>
-
-							<div class="vip-paycheck-column">
-								<div class="section-title">PRÓXIMO SALÁRIO</div>
-								<div class="paycheck-container">
-									<div class="paycheck-timer">
-										<span x-text="store.formatTime(store.vip.paycheckTime)"></span>
-									</div>
-									<div class="paycheck-progress-bg">
-										<div class="paycheck-progress-bar" :style="'width: ' + store.getPaycheckProgress() + '%'"></div>
-									</div>
-									<div class="paycheck-desc">Falta pouco para você receber seu salário automático no banco!</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<div class="container-comandos" x-show="store.activeTab === 'comandos'" x-transition.opacity>
-					<div class="titulo-container-caixas">
-						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-terminal"></i></div>
-						<div class="titulo-titulo-container-caixas">COMANDOS</div>
-						<div class="separador-titulo"></div>
-						<div class="search-comandos-fake">
-							<i class="fa-solid fa-search"></i>
-							<input type="text" placeholder="Pesquisar comando" x-model="store.comandosSearch">
-						</div>
-						<div class="descricao-container-caixas">Clique em <b>executar</b> para usar o comando</div>
-					</div>
-					<div class="overflow-comandos">
-						<template x-for="cmd in store.getFilteredComandos()" :key="cmd.comando">
-							<div class="item-comando">
-								<div class="item-comando-texto" x-text="cmd.comando"></div>
-								<div class="botao-executar-comando" @click="store.executarComando(cmd.comando)">EXECUTAR</div>
-							</div>
-						</template>
-					</div>
-				</div>
-
 			</div>
-		</div>
+		</aside>
 
-		<script src="app.js" type="text/javascript"></script>
-	</body>
+		<!-- ========== MAIN PANEL ========== -->
+		<main class="main-panel">
+
+			<!-- ======= INÍCIO ======= -->
+			<div class="panel-content" x-show="store.activeTab === 'inicio'" x-transition.opacity>
+
+				<div class="panel-heading">
+					<div class="panel-title"><i class="fa-solid fa-house-chimney"></i> BEM-VINDO</div>
+					<div class="panel-subtitle" x-text="'Olá, ' + store.player.name + '. O que deseja fazer hoje?'"></div>
+				</div>
+
+				<div class="quick-grid">
+					<div class="quick-card" @click="Nui.post('mapa')">
+						<div class="qc-glow" style="--glow-color: var(--blue);"></div>
+						<div class="qc-icon blue-icon"><i class="fa-solid fa-map"></i></div>
+						<div class="qc-title">MAPA GPS</div>
+						<div class="qc-desc">Visão geral da cidade</div>
+						<div class="qc-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+					</div>
+
+					<div class="quick-card quick-card-vip" @click="store.activeTab = 'vip'">
+						<div class="qc-glow" style="--glow-color: var(--gold);"></div>
+						<div class="qc-badge">EXCLUSIVO</div>
+						<div class="qc-icon gold-icon"><i class="fa-solid fa-crown"></i></div>
+						<div class="qc-title">VIP STATUS</div>
+						<div class="qc-desc" x-text="store.vip.tier !== 'nenhum' ? 'Gerencie seus benefícios' : 'Ganhe salário e vantagens'"></div>
+						<div class="qc-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+					</div>
+
+					<div class="quick-card" @click="store.activeTab = 'comandos'; store.loadComandos()">
+						<div class="qc-glow" style="--glow-color: var(--purple);"></div>
+						<div class="qc-icon purple-icon"><i class="fa-solid fa-terminal"></i></div>
+						<div class="qc-title">COMANDOS</div>
+						<div class="qc-desc">Animações e atalhos</div>
+						<div class="qc-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+					</div>
+
+					<div class="quick-card" @click="store.activeTab = 'mira'; store.loadMira()">
+						<div class="qc-glow" style="--glow-color: var(--green);"></div>
+						<div class="qc-icon green-icon"><i class="fa-solid fa-crosshairs"></i></div>
+						<div class="qc-title">MIRA CUSTOM</div>
+						<div class="qc-desc">Configure seu crosshair</div>
+						<div class="qc-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+					</div>
+				</div>
+
+				<!-- VIP Teaser (no VIP) -->
+				<div class="vip-teaser" x-show="store.vip.tier === 'nenhum'" x-transition @click="store.activeTab = 'vip'">
+					<div class="vip-teaser-particles">
+						<div class="pt pt1"></div><div class="pt pt2"></div>
+						<div class="pt pt3"></div><div class="pt pt4"></div>
+						<div class="pt pt5"></div><div class="pt pt6"></div>
+					</div>
+					<div class="vip-teaser-left">
+						<div class="vip-teaser-crown"><i class="fa-solid fa-crown"></i></div>
+						<div>
+							<div class="vip-teaser-title">TORNE-SE VIP HOJE</div>
+							<div class="vip-teaser-sub">Salário automático · Inventário extra · Prioridade na fila</div>
+						</div>
+					</div>
+					<div class="vip-teaser-btn">VER PLANOS <i class="fa-solid fa-chevron-right"></i></div>
+				</div>
+
+				<!-- VIP Active Banner -->
+				<div class="vip-active-bar" x-show="store.vip.tier !== 'nenhum'" x-transition @click="store.activeTab = 'vip'">
+					<div class="vab-left">
+						<i class="fa-solid fa-crown vab-crown"></i>
+						<div>
+							<div class="vab-label">STATUS VIP ATIVO</div>
+							<div class="vab-tier" x-text="store.vip.label"></div>
+						</div>
+					</div>
+					<div class="vab-right">
+						<div class="vab-timer-label">Próximo salário em</div>
+						<div class="vab-timer" x-text="store.formatTime(store.vip.paycheckTime)"></div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ======= VIP ======= -->
+			<div class="panel-vip" x-show="store.activeTab === 'vip'" x-transition.opacity>
+
+				<!-- Hero Banner -->
+				<div class="vip-hero" :class="store.vip.tier !== 'nenhum' ? 'hero-active' : 'hero-inactive'">
+					<div class="vip-hero-fx">
+						<div class="hfx hfx1"></div><div class="hfx hfx2"></div>
+						<div class="hfx hfx3"></div><div class="hfx hfx4"></div>
+						<div class="hfx hfx5"></div><div class="hfx hfx6"></div>
+					</div>
+
+					<!-- Active VIP -->
+					<div class="hero-body" x-show="store.vip.tier !== 'nenhum'">
+						<div class="hero-crown"><i class="fa-solid fa-crown"></i></div>
+						<div class="hero-tier" x-text="store.vip.label.toUpperCase()"></div>
+						<div class="hero-status-text">STATUS VIP ATIVO</div>
+					</div>
+
+					<!-- No VIP -->
+					<div class="hero-body hero-body-locked" x-show="store.vip.tier === 'nenhum'">
+						<div class="hero-crown hero-lock"><i class="fa-solid fa-lock"></i></div>
+						<div class="hero-tier hero-tier-locked">DESBLOQUEIE O VIP</div>
+						<div class="hero-status-text hero-status-locked">Transforme sua experiência. Ganhe renda passiva.</div>
+					</div>
+
+					<div class="hero-fade"></div>
+				</div>
+
+				<!-- Stats Row -->
+				<div class="vip-stats">
+					<div class="vstat">
+						<div class="vstat-icon si-blue"><i class="fa-solid fa-gem"></i></div>
+						<div><div class="vstat-label">Plano</div><div class="vstat-val" x-text="store.vip.label"></div></div>
+					</div>
+					<div class="vstat">
+						<div class="vstat-icon si-green"><i class="fa-solid fa-coins"></i></div>
+						<div><div class="vstat-label">MRI Coins</div><div class="vstat-val" x-text="store.vip.coins"></div></div>
+					</div>
+					<div class="vstat">
+						<div class="vstat-icon si-gold"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+						<div><div class="vstat-label">Salário</div><div class="vstat-val" x-text="store.formatMoney(store.vip.salary)"></div></div>
+					</div>
+					<div class="vstat">
+						<div class="vstat-icon si-purple"><i class="fa-solid fa-weight-hanging"></i></div>
+						<div><div class="vstat-label">Inventário</div><div class="vstat-val" x-text="store.vip.inventory + ' kg'"></div></div>
+					</div>
+				</div>
+
+				<!-- Main Body -->
+				<div class="vip-body">
+
+					<!-- Left Column -->
+					<div class="vip-col-left">
+
+						<!-- Benefits (if VIP) -->
+						<div class="vip-block" x-show="store.vip.tier !== 'nenhum'">
+							<div class="vblock-title green-title"><i class="fa-solid fa-star"></i> SEUS BENEFÍCIOS</div>
+							<div class="benefits-grid">
+								<template x-for="b in store.vip.benefits" :key="b">
+									<div class="benefit-pill">
+										<div class="bp-check"><i class="fa-solid fa-check"></i></div>
+										<span x-text="b"></span>
+									</div>
+								</template>
+							</div>
+						</div>
+
+						<!-- Comparison Table -->
+						<div class="vip-block comparison-vip-block">
+							<div class="vblock-title gold-title"><i class="fa-solid fa-table-columns"></i> COMPARATIVO DE PLANOS</div>
+							<div class="comp-table">
+								<div class="ct-head">
+									<div class="ct-feat">Benefício</div>
+									<div class="ct-free">GRATUITO</div>
+									<div class="ct-vip">VIP TIER 1</div>
+								</div>
+								<div class="ct-row"><div class="ct-feat">Salário automático</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
+								<div class="ct-row"><div class="ct-feat">+100kg no inventário</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
+								<div class="ct-row"><div class="ct-feat">R$ 5.000 a cada 30 min</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
+								<div class="ct-row"><div class="ct-feat">Prioridade na fila</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
+								<div class="ct-row"><div class="ct-feat">Acesso antecipado</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
+								<div class="ct-row"><div class="ct-feat">Suporte prioritário</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Right Column -->
+					<div class="vip-col-right">
+
+						<!-- Circular Paycheck Timer -->
+						<div class="vip-block timer-vip-block">
+							<div class="vblock-title gold-title"><i class="fa-solid fa-clock"></i> PRÓXIMO SALÁRIO</div>
+							<div class="circ-timer-wrap">
+								<svg class="circ-svg" viewBox="0 0 120 120">
+									<circle class="circ-bg" cx="60" cy="60" r="52"/>
+									<circle class="circ-fill" cx="60" cy="60" r="52"
+										:stroke-dashoffset="327 - (store.getPaycheckProgress() / 100 * 327)"/>
+								</svg>
+								<div class="circ-center">
+									<div class="circ-time" x-text="store.formatTime(store.vip.paycheckTime)"></div>
+									<div class="circ-label">restante</div>
+								</div>
+							</div>
+							<div class="timer-info">
+								<i class="fa-solid fa-circle-info"></i>
+								Salário depositado no banco a cada <b>30 minutos</b>
+							</div>
+						</div>
+
+						<!-- CTA Block (no VIP) -->
+						<div class="vip-block cta-vip-block" x-show="store.vip.tier === 'nenhum'">
+							<div class="vblock-title"><i class="fa-solid fa-fire" style="color: var(--red);"></i> <span style="color: var(--gold);">OFERTA EXCLUSIVA</span></div>
+							<div class="cta-plan-name">VIP TIER 1</div>
+							<div class="cta-perks">
+								<div class="cta-perk"><i class="fa-solid fa-bolt"></i> R$ 5.000 a cada 30 minutos</div>
+								<div class="cta-perk"><i class="fa-solid fa-box"></i> +100kg de capacidade</div>
+								<div class="cta-perk"><i class="fa-solid fa-star"></i> Acesso prioritário ao servidor</div>
+							</div>
+							<div class="btn-cta-buy">
+								<div class="btn-shimmer"></div>
+								<i class="fa-solid fa-crown"></i> ADQUIRIR VIP AGORA
+							</div>
+							<div class="cta-note">Contate um admin ou acesse a loja do servidor</div>
+						</div>
+
+						<!-- Already VIP block -->
+						<div class="vip-block premium-vip-block" x-show="store.vip.tier !== 'nenhum'">
+							<div class="vblock-title blue-title"><i class="fa-solid fa-trophy"></i> STATUS PREMIUM</div>
+							<div class="premium-inner">
+								<div class="premium-icon"><i class="fa-solid fa-shield-halved"></i></div>
+								<div>
+									<div class="premium-name">Você é VIP!</div>
+									<div class="premium-desc">Aproveite todos os benefícios exclusivos. Renove seu plano para continuar.</div>
+								</div>
+							</div>
+						</div>
+
+					</div>
+				</div>
+			</div>
+
+			<!-- ======= COMANDOS ======= -->
+			<div class="panel-content" x-show="store.activeTab === 'comandos'" x-transition.opacity>
+				<div class="panel-heading">
+					<div class="panel-title"><i class="fa-solid fa-terminal"></i> COMANDOS</div>
+					<div class="panel-subtitle">Clique em <b>EXECUTAR</b> para usar o comando</div>
+				</div>
+
+				<div class="search-wrap">
+					<i class="fa-solid fa-search"></i>
+					<input type="text" class="search-input" placeholder="Pesquisar comando ou animação..." x-model="store.comandosSearch">
+				</div>
+
+				<div class="cmd-list">
+					<template x-for="cmd in store.getFilteredComandos()" :key="cmd.comando">
+						<div class="cmd-item">
+							<div class="cmd-info">
+								<div class="cmd-name" x-text="cmd.comando"></div>
+								<div class="cmd-desc" x-text="cmd.descricao"></div>
+							</div>
+							<div class="btn-run" @click="Nui.post('executarComando', { comando: cmd.comando })">
+								<i class="fa-solid fa-play"></i> EXECUTAR
+							</div>
+						</div>
+					</template>
+					<div class="empty-cmd" x-show="store.getFilteredComandos().length === 0">
+						<i class="fa-solid fa-inbox"></i>
+						<span>Nenhum comando encontrado</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- ======= CUSTOMIZAÇÃO ======= -->
+			<div class="panel-content" x-show="store.activeTab === 'customizacao'" x-transition.opacity x-init="store.loadRedesSociais()">
+				<div class="panel-heading">
+					<div class="panel-title"><i class="fa-solid fa-user"></i> CUSTOMIZAÇÃO</div>
+					<div class="panel-subtitle">Configure suas redes sociais no servidor</div>
+				</div>
+
+				<div class="form-wrap">
+					<div class="form-field">
+						<label class="form-lbl"><i class="fa-brands fa-instagram"></i> Instagram</label>
+						<input type="text" class="form-inp" x-model="store.redesSociais.instagram" placeholder="@seu_instagram">
+					</div>
+					<div class="form-field">
+						<label class="form-lbl"><i class="fa-brands fa-tiktok"></i> TikTok</label>
+						<input type="text" class="form-inp" x-model="store.redesSociais.tiktok" placeholder="@seu_tiktok">
+					</div>
+					<div class="form-field">
+						<label class="form-lbl"><i class="fa-brands fa-youtube"></i> YouTube</label>
+						<input type="text" class="form-inp" x-model="store.redesSociais.youtube" placeholder="@seu_youtube">
+					</div>
+					<div class="btn-save-blue" @click="store.saveRedesSociais()">
+						<i class="fa-solid fa-floppy-disk"></i> SALVAR ALTERAÇÕES
+					</div>
+				</div>
+			</div>
+
+			<!-- ======= MIRA ======= -->
+			<div class="panel-content" x-show="store.activeTab === 'mira'" x-transition.opacity x-data="miraComponent()">
+				<div class="panel-heading">
+					<div class="panel-title"><i class="fa-solid fa-crosshairs"></i> MIRA PERSONALIZADA</div>
+					<div class="panel-subtitle">Configure o crosshair externo do HUD</div>
+				</div>
+
+				<div class="mira-layout">
+					<div class="mira-preview-wrap">
+						<div class="mira-canvas-frame">
+							<canvas id="canvas-mira-preview"></canvas>
+						</div>
+						<div class="mira-preview-lbl">PRÉ-VISUALIZAÇÃO</div>
+					</div>
+
+					<div class="mira-controls">
+						<div class="ctrl-row">
+							<div class="ctrl-block">
+								<div class="ctrl-lbl"><i class="fa-solid fa-arrows-left-right"></i> TAMANHO</div>
+								<div class="ctrl-inputs">
+									<input type="range" x-model.number="store.mira.tamanho" @input="updateMira()" min="0" max="50" class="slider-mira">
+									<input type="number" x-model.number="store.mira.tamanho" @input="updateMiraNumber('tamanho', 0, 50)" min="0" max="50" class="valor-mira">
+								</div>
+							</div>
+							<div class="ctrl-block">
+								<div class="ctrl-lbl"><i class="fa-solid fa-compress"></i> ESPAÇO</div>
+								<div class="ctrl-inputs">
+									<input type="range" x-model.number="store.mira.gap" @input="updateMira()" min="0" max="20" class="slider-mira">
+									<input type="number" x-model.number="store.mira.gap" @input="updateMiraNumber('gap', 0, 20)" min="0" max="20" class="valor-mira">
+								</div>
+							</div>
+						</div>
+						<div class="ctrl-row">
+							<div class="ctrl-block">
+								<div class="ctrl-lbl"><i class="fa-solid fa-grip-lines"></i> ESPESSURA</div>
+								<div class="ctrl-inputs">
+									<input type="range" x-model.number="store.mira.espessura" @input="updateMira()" min="1" max="10" class="slider-mira">
+									<input type="number" x-model.number="store.mira.espessura" @input="updateMiraNumber('espessura', 1, 10)" min="1" max="10" class="valor-mira">
+								</div>
+							</div>
+							<div class="ctrl-block">
+								<div class="ctrl-lbl"><i class="fa-solid fa-circle-notch"></i> CONTORNO</div>
+								<div class="ctrl-inputs">
+									<input type="range" x-model.number="store.mira.outline" @input="updateMira()" min="0" max="5" class="slider-mira">
+									<input type="number" x-model.number="store.mira.outline" @input="updateMiraNumber('outline', 0, 5)" min="0" max="5" class="valor-mira">
+								</div>
+							</div>
+						</div>
+						<div class="ctrl-row">
+							<div class="ctrl-block">
+								<div class="ctrl-lbl"><i class="fa-solid fa-palette"></i> COR</div>
+								<div class="ctrl-inputs cor-input">
+									<input type="color" x-model="store.mira.cor" @input="updateColor()" class="color-picker-mira">
+									<input type="text" x-model="store.mira.cor" @input="validateColor()" class="hex-mira">
+								</div>
+							</div>
+							<div class="ctrl-block">
+								<div class="ctrl-lbl"><i class="fa-solid fa-eye"></i> OPACIDADE</div>
+								<div class="ctrl-inputs">
+									<input type="range" x-model.number="store.mira.opacidade" @input="updateMira()" min="0" max="100" class="slider-mira">
+									<input type="number" x-model.number="store.mira.opacidade" @input="updateMiraNumber('opacidade', 0, 100)" min="0" max="100" class="valor-mira">
+								</div>
+							</div>
+						</div>
+						<div class="ctrl-row">
+							<div class="ctrl-block toggle-ctrl">
+								<span class="ctrl-lbl">ATIVAR MIRA</span>
+								<label class="toggle-mira">
+									<input type="checkbox" x-model="store.mira.ativo" @change="updateMira()">
+									<span class="toggle-slider"></span>
+								</label>
+							</div>
+							<div class="ctrl-block toggle-ctrl">
+								<span class="ctrl-lbl">PONTO CENTRAL</span>
+								<label class="toggle-mira">
+									<input type="checkbox" x-model="store.mira.dot" @change="updateMira()">
+									<span class="toggle-slider"></span>
+								</label>
+							</div>
+						</div>
+						<div class="mira-action-row">
+							<div class="btn-mira-reset" @click="store.resetMira(); updateMira()">
+								<i class="fa-solid fa-rotate-left"></i> RESETAR
+							</div>
+							<div class="btn-mira-save" @click="store.saveMira()">
+								<i class="fa-solid fa-floppy-disk"></i> SALVAR
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+		</main>
+	</div>
+
+	<script src="app.js" type="text/javascript"></script>
+</body>
 </html>
