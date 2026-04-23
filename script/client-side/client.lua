@@ -84,6 +84,7 @@ RegisterCommand("open_menu", function()
     if not pauseMenu and not IsPauseMenuActive() then
         local playersOn = GetPlayersOnline()
         local playerData = GetPlayerData()
+        local vipData = lib.callback.await('mri_esc:server:getVipData', false)
         
         local nome = "Jogador"
         local id = GetPlayerServerId(PlayerId())
@@ -113,6 +114,7 @@ RegisterCommand("open_menu", function()
             money = money,
             bank = bank,
             job = jobText,
+            vip = vipData,
             tabs = BuildTabsConfig()
         })
 

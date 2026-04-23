@@ -28,6 +28,7 @@ Config.Tabs = {
     -- { id = 'mapa', label = 'MAPA', icon = 'fa-map', action = 'mapa' },
     -- { id = 'customizacao', label = 'CUSTOMIZAÇÃO', icon = 'fa-user', action = 'customizacao' },
     -- { id = 'config', label = 'CONFIGURAÇÕES', icon = 'fa-cog', action = 'config' }
+    { id = 'vip', label = 'VIP', icon = 'fa-crown', action = 'vip' }
 }
 
 --------------------------------------------------------------------------------

@@ -263,6 +263,68 @@
 					</div>
 				</div>
 
+				<div class="container-vip" x-show="store.activeTab === 'vip'" x-transition.opacity>
+					<div class="titulo-container-caixas">
+						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-crown"></i></div>
+						<div class="titulo-titulo-container-caixas">SISTEMA VIP</div>
+						<div class="separador-titulo"></div>
+						<div class="descricao-container-caixas">Gerencie seu <b>status VIP</b> e benefícios</div>
+					</div>
+
+					<div class="conteudo-vip">
+						<div class="vip-header-info">
+							<div class="vip-card main-vip">
+								<div class="vip-card-icon"><i class="fa-solid fa-gem"></i></div>
+								<div class="vip-card-data">
+									<div class="vip-card-label">Plano Atual</div>
+									<div class="vip-card-value" x-text="store.vip.label"></div>
+								</div>
+							</div>
+							<div class="vip-card coins-vip">
+								<div class="vip-card-icon"><i class="fa-solid fa-coins"></i></div>
+								<div class="vip-card-data">
+									<div class="vip-card-label">MRI Coins</div>
+									<div class="vip-card-value" x-text="store.vip.coins"></div>
+								</div>
+							</div>
+							<div class="vip-card salary-vip">
+								<div class="vip-card-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+								<div class="vip-card-data">
+									<div class="vip-card-label">Salário VIP</div>
+									<div class="vip-card-value" x-text="store.formatMoney(store.vip.salary)"></div>
+								</div>
+							</div>
+						</div>
+
+						<div class="vip-lower-section">
+							<div class="vip-benefits-column">
+								<div class="section-title">SEUS BENEFÍCIOS</div>
+								<div class="benefits-list">
+									<template x-for="benefit in store.vip.benefits" :key="benefit">
+										<div class="benefit-item">
+											<i class="fa-solid fa-check-circle"></i>
+											<span x-text="benefit"></span>
+										</div>
+									</template>
+								</div>
+							</div>
+
+							<div class="vip-paycheck-column">
+								<div class="section-title">PRÓXIMO SALÁRIO</div>
+								<div class="paycheck-container">
+									<div class="paycheck-timer">
+										<span x-text="store.formatTime(store.vip.paycheckTime)"></span>
+									</div>
+									<div class="paycheck-progress-bg">
+										<div class="paycheck-progress-bar" :style="'width: ' + store.getPaycheckProgress() + '%'"></div>
+									</div>
+									<div class="paycheck-desc">Falta pouco para você receber seu salário automático no banco!</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
 				<div class="container-comandos" x-show="store.activeTab === 'comandos'" x-transition.opacity>
 					<div class="titulo-container-caixas">
 						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-terminal"></i></div>

@@ -165,9 +165,74 @@ document.addEventListener('alpine:init', () => {
             { id: 'config', label: 'CONFIGURAÇÕES', icon: 'fa-cog', action: 'config' }
         ],
 
+        vip: {
+            tier: 'nenhum',
+            label: 'Nenhum',
+            salary: 0,
+            inventory: 0,
+            coins: 0,
+            benefits: [],
+            paycheckTime: 0,
+            paycheckMax: 1800 // 30 mins
+        },
+        paycheckInterval: null,
+
         // --- Actions ---
         init(data) {
             this.player = { ...this.player, ...data };
+            if (data.vip) {
+                this.updateVip(data.vip);
+            }
+        },
+
+        updateVip(data) {
+            this.vip.tier = data.tier || 'nenhum';
+            this.vip.label = data.label || 'Sem VIP';
+            this.vip.salary = data.salary || 0;
+            this.vip.inventory = data.inventory || 0;
+            this.vip.coins = data.coins || 0;
+            this.vip.benefits = Array.isArray(data.benefits) ? data.benefits : [];
+            
+            if (data.interval) {
+                this.vip.paycheckMax = data.interval * 60;
+            }
+
+            // Sincroniza com o tempo real do servidor
+            if (data.timeLeft !== undefined) {
+                this.vip.paycheckTime = data.timeLeft;
+            }
+
+            this.startPaycheckTimer();
+        },
+
+        startPaycheckTimer() {
+            if (this.paycheckInterval) clearInterval(this.paycheckInterval);
+            
+            if (this.vip.paycheckTime <= 0) {
+                this.vip.paycheckTime = this.vip.paycheckMax;
+            }
+
+            this.paycheckInterval = setInterval(() => {
+                if (this.vip.paycheckTime > 0) {
+                    this.vip.paycheckTime--;
+                } else {
+                    // Ao acabar o tempo localmente, deve aguardar a próxima abertura de menu
+                    // ou resetar conforme o padrão (30min)
+                    this.vip.paycheckTime = this.vip.paycheckMax;
+                }
+            }, 1000);
+        },
+
+        formatTime(seconds) {
+            if (seconds == null || isNaN(seconds)) return "0:00";
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        },
+        
+        getPaycheckProgress() {
+            if (!this.vip.paycheckMax) return 0;
+            return (this.vip.paycheckTime / this.vip.paycheckMax) * 100;
         },
 
         async loadMira() {
@@ -265,6 +330,9 @@ const App = {
                     bank: data.bank,
                     playersOn: data.playersOn
                 };
+                if (data.vip) {
+                    store.updateVip(data.vip);
+                }
                 if (data.tabs) store.tabs = data.tabs;
                 store.activeTab = 'inicio';
                 store.isOpen = true;
