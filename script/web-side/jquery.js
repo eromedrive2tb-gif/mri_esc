@@ -34,6 +34,11 @@ $(document).ready(function(){
 				$("#nome-usuario").text(item.nome);
 				$("#id-usuario").text(item.id);
 				$("#job-usuario").text(item.job);
+				
+				// Atualiza Dinheiro e Banco
+				$("#coins").text(formatMoney(item.money));
+				$("#coins-arma").text(formatMoney(item.bank));
+
 				TrocarContainer("inicio");
 				AbrirInterface()
 
@@ -1703,4 +1708,8 @@ AbrirSkins = function(){
 	$.post("https://mri_esc/AbrirSkins", JSON.stringify({}), function(data){
 	
 	});
+}
+formatMoney = function(n) {
+	if (n === undefined || n === null) return "$ 0";
+	return "$ " + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }

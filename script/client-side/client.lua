@@ -115,7 +115,7 @@ RegisterCommand("open_menu", function()
 end)
 RegisterKeyMapping("open_menu", "Abrir Esc Menu", "keyboard", "ESCAPE")
 
-local function closeMenu()
+local function closeMenu(ignoreFrontend)
     print("[MRI_ESC DEBUG LUA] Executing closeMenu function...")
     -- Fecha a UI instantaneamente
     SendNUIMessage({ action = "hideMenu" })
@@ -127,10 +127,10 @@ local function closeMenu()
     -- FIX DEFINITIVO: O FiveM "vaza" a tecla ESC de volta para o jogo se o foco NUI for tirado 
     -- exatamente no mesmo milissegundo em que o ESC está soltando (keyup).
     CreateThread(function()
-        SetFrontendActive(false) -- Aborta qualquer pause nativo que tente abrir
+        if not ignoreFrontend then SetFrontendActive(false) end -- Aborta qualquer pause nativo que tente abrir
         Wait(150) -- "Come" o evento físico do ESC na UI invisível
         SetNuiFocus(false, false)
-        SetFrontendActive(false) -- Garante duplo kill no menu nativo
+        if not ignoreFrontend then SetFrontendActive(false) end -- Garante duplo kill no menu nativo
         print("[MRI_ESC DEBUG LUA] Thread delayed focus release completed.")
     end)
 end
@@ -143,14 +143,17 @@ end)
 
 RegisterNUICallback("mapa", function(_, cb)
     print("[MRI_ESC DEBUG LUA] NUI Callback 'mapa' received!")
-    closeMenu()
+    closeMenu(true)
+    Wait(100)
     ActivateFrontendMenu(GetHashKey("FE_MENU_VERSION_MP_PAUSE"), 0, -1)
     if cb then cb({ success = true }) end
 end)
 
 RegisterNUICallback("config", function(_, cb)
-    ActivateFrontendMenu(GetHashKey("FE_MENU_VERSION_LANDING_MENU"), true)
-    closeMenu()
+    print("[MRI_ESC DEBUG LUA] NUI Callback 'config' received!")
+    closeMenu(true)
+    Wait(100)
+    ActivateFrontendMenu(GetHashKey("FE_MENU_VERSION_LANDING_MENU"), 0, -1)
     if cb then cb({ success = true }) end
 end)
 
