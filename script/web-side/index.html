@@ -1,0 +1,268 @@
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<script src="nui://game/ui/jquery.js" type="text/javascript"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.min.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.2/animate.min.css">
+		<link href="https://fonts.googleapis.com/css2?family=Mukta:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">    
+		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.10.0/css/all.css" integrity="sha384-AYmEC3Yw5cVb3ZcuHtOA93w35dYTsvhLPVnYs9eStHfGJvOvKxVfELGroGkvsg+p" crossorigin="anonymous"/>
+		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v6.0.0-beta3/css/all.css">
+		<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+		<link href="css.css" rel="stylesheet" type="text/css"/>
+	</head>
+	<body>
+
+		<div class="mira-permanente" id="mira-permanente" style="display: none;">
+			<canvas id="canvas-mira-permanente"></canvas>
+		</div>
+		<div class="containerFake" style="display: none;"></div>
+		<div class="container" style="display: none;">
+			<div class="header">
+				<img src="assets/logo.png">
+				<div class="header-direito">
+					<div class="header-botoes">
+						<div class="botao-header active" onclick="TrocarContainer('inicio')"><i class="fa-solid fa-bars"></i> INÍCIO</div>
+						<div class="botao-header" onclick="Mapa()"><i class="fa-solid fa-map"></i> MAPA</div>
+						<div class="botao-header" style="width: 150px;" onclick="TrocarContainer('customizacao')"><i class="fa-solid fa-user"></i> CUSTOMIZAÇÃO</div>
+						<div class="botao-header" onclick="Config()" style="width: 150px;"><i class="fa-solid fa-cog"></i> CONFIGURAÇÕES</div>
+						<div class="botao-header" onclick="Fechar()"><i class="fa-solid fa-right-from-bracket"></i> SAIR</div>
+					</div>
+				</div>
+				<div class="header-direito-dentro">
+					<div class="jogadoresonline"> <i class="fa-solid fa-users"></i> <span id="jogadoresonline"></span></div>
+				</div>
+			</div>
+
+			<div class="container-centro">
+				<div class="container-player">
+					<div class="imagemJogador">
+						<img src="assets/imagem-invalida-user.png" alt="">
+					</div>
+					<div class="nomeJogador"><b id="nome-usuario"></b> - Nº <span id="id-usuario"></span></div>
+					<div class="jobJogador" style="color: #ccc; font-size: 14px; margin-top: -5px; margin-bottom: 20px; font-weight: 900;"><i class="fa-solid fa-briefcase"></i> <span id="job-usuario">Desempregado</span></div>
+					<div class="box-container-centro">
+						<div class="item-container-centro">
+							<div class="icone-item-container-centro">
+								<div class="background-icone-item-container-centro"> <i class="fa-solid fa-wallet"></i> </div>
+							</div>
+							<div class="infos-item-container-centro">
+								<div class="nome-item-container-centro">Carteira</div>
+								<div class="valor-item-container-centro" id="coins">0</div>
+							</div>
+						</div>
+						<div class="item-container-centro">
+							<div class="icone-item-container-centro">
+								<div class="background-icone-item-container-centro"> <i class="fa-solid fa-building-columns"></i> </div>
+							</div>
+							<div class="infos-item-container-centro">
+								<div class="nome-item-container-centro">Banco</div>
+								<div class="valor-item-container-centro" id="coins-arma">0</div>
+							</div>
+						</div>
+						<div class="botao-chamar-suporte"><i class="fa-solid fa-headset"></i> CHAMAR SUPORTE</div>
+					</div>
+				</div>
+				
+				<div class="containerOpcoes" style="display: none;">
+					<div class="opcoes-modernas-container">
+						<div class="opcao-card" onclick="Mapa()">
+							<div class="opcao-icone"><i class="fa-solid fa-map"></i></div>
+							<div class="opcao-titulo">MAPA GPS</div>
+							<div class="opcao-desc">Acesse a visão geral da cidade</div>
+						</div>
+
+						<div class="opcao-card" onclick="TrocarContainer('comandos')">
+							<div class="opcao-icone"><i class="fa-solid fa-terminal"></i></div>
+							<div class="opcao-titulo">COMANDOS</div>
+							<div class="opcao-desc">Lista completa de atalhos e animações do seu personagem</div>
+						</div>
+
+						<div class="opcao-card" onclick="TrocarContainer('mira')">
+							<div class="opcao-icone"><i class="fa-solid fa-crosshairs"></i></div>
+							<div class="opcao-titulo">COFIGURAR MIRA</div>
+							<div class="opcao-desc">Edite tamanho, opacidade e o estilo do crosshair do HUD</div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="container-customizacao" style="display: none;">
+					<div class="titulo-container-caixas">
+						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-user"></i></div>
+						<div class="titulo-titulo-container-caixas">CUSTOMIZAÇÃO</div>
+						<div class="separador-titulo"></div>
+						<div class="descricao-container-caixas">Personalize suas <b>redes sociais</b></div>
+					</div>
+					<div class="container-redes-sociais">
+						<div class="item-rede-social">
+							<div class="label-rede-social">Perfil do Instagram</div>
+							<input type="text" class="input-rede-social" id="input-instagram" placeholder="@seu_instagram">
+						</div>
+						<div class="item-rede-social">
+							<div class="label-rede-social">Perfil do Tiktok</div>
+							<input type="text" class="input-rede-social" id="input-tiktok" placeholder="@seu_tiktok">
+						</div>
+						<div class="item-rede-social">
+							<div class="label-rede-social">Perfil do Youtube</div>
+							<input type="text" class="input-rede-social" id="input-youtube" placeholder="@seu_youtube">
+						</div>
+						<div class="botao-salvar-redes-sociais" onclick="SalvarRedesSociais()">
+							<i class="fa-solid fa-floppy-disk"></i>
+							SALVAR
+						</div>
+					</div>
+				</div>
+				
+				<div class="container-mira" style="display: none;">
+					<div class="titulo-container-caixas">
+						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-crosshairs"></i></div>
+						<div class="titulo-titulo-container-caixas">MIRA</div>
+						<div class="separador-titulo"></div>
+						<div class="descricao-container-caixas">Edite a sua <b>mira</b> externa</div>
+					</div>
+					
+					<div class="conteudo-mira">
+						<div class="preview-mira-container">
+							<div class="preview-mira-canvas" id="preview-mira-canvas">
+								<canvas id="canvas-mira-preview"></canvas>
+							</div>
+						</div>
+						
+						<div class="controles-mira">
+							<div class="linha-controle-mira">
+								<div class="item-controle-mira">
+									<div class="label-controle-mira">
+										<i class="fa-solid fa-arrows-left-right"></i>
+										<span>TAMANHO</span>
+									</div>
+									<div class="input-controle-mira">
+										<input type="range" id="mira-tamanho" min="0" max="50" value="12" class="slider-mira">
+										<input type="number" id="mira-tamanho-valor" value="12" min="0" max="50" class="valor-mira">
+									</div>
+								</div>
+								
+								<div class="item-controle-mira">
+									<div class="label-controle-mira">
+										<i class="fa-solid fa-compress"></i>
+										<span>ESPAÇO CENTRAL</span>
+									</div>
+									<div class="input-controle-mira">
+										<input type="range" id="mira-gap" min="0" max="20" value="4" class="slider-mira">
+										<input type="number" id="mira-gap-valor" value="4" min="0" max="20" class="valor-mira">
+									</div>
+								</div>
+							</div>
+							
+							<div class="linha-controle-mira">
+								<div class="item-controle-mira">
+									<div class="label-controle-mira">
+										<i class="fa-solid fa-grip-lines"></i>
+										<span>ESPESSURA</span>
+									</div>
+									<div class="input-controle-mira">
+										<input type="range" id="mira-espessura" min="1" max="10" value="2" class="slider-mira">
+										<input type="number" id="mira-espessura-valor" value="2" min="1" max="10" class="valor-mira">
+									</div>
+								</div>
+								
+								<div class="item-controle-mira">
+									<div class="label-controle-mira">
+										<i class="fa-solid fa-circle-notch"></i>
+										<span>CONTORNO</span>
+									</div>
+									<div class="input-controle-mira">
+										<input type="range" id="mira-outline" min="0" max="5" value="1" class="slider-mira">
+										<input type="number" id="mira-outline-valor" value="1" min="0" max="5" class="valor-mira">
+									</div>
+								</div>
+							</div>
+							
+							<div class="linha-controle-mira">
+								<div class="item-controle-mira">
+									<div class="label-controle-mira">
+										<i class="fa-solid fa-palette"></i>
+										<span>COR</span>
+									</div>
+									<div class="input-controle-mira cor-input">
+										<input type="color" id="mira-cor" value="#FFFFFF" class="color-picker-mira">
+										<input type="text" id="mira-cor-hex" value="#FFFFFF" class="hex-mira">
+									</div>
+								</div>
+								
+								<div class="item-controle-mira">
+									<div class="label-controle-mira">
+										<i class="fa-solid fa-eye"></i>
+										<span>OPACIDADE</span>
+									</div>
+									<div class="input-controle-mira">
+										<input type="range" id="mira-opacidade" min="0" max="100" value="100" class="slider-mira">
+										<input type="number" id="mira-opacidade-valor" value="100" min="0" max="100" class="valor-mira">
+									</div>
+								</div>
+							</div>
+							
+							<div class="linha-controle-mira">
+								<div class="item-controle-mira full-width">
+									<div class="label-controle-mira">
+										<i class="fa-solid fa-circle"></i>
+										<span>ATIVAR</span>
+									</div>
+									<div class="toggle-controle-mira">
+										<label class="toggle-mira">
+											<input type="checkbox" id="mira-ativo">
+											<span class="toggle-slider"></span>
+										</label>
+									</div>
+								</div>
+								<div class="item-controle-mira full-width">
+									<div class="label-controle-mira">
+										<i class="fa-solid fa-circle"></i>
+										<span>PONTO CENTRAL</span>
+									</div>
+									<div class="toggle-controle-mira">
+										<label class="toggle-mira">
+											<input type="checkbox" id="mira-dot">
+											<span class="toggle-slider"></span>
+										</label>
+									</div>
+								</div>
+							</div>
+							
+							<div class="botoes-mira">
+								<div class="botao-mira botao-resetar-mira" onclick="ResetarMira()">
+									<i class="fa-solid fa-rotate-left"></i>
+									RESETAR
+								</div>
+								<div class="botao-mira botao-salvar-mira" onclick="SalvarMira()">
+									<i class="fa-solid fa-floppy-disk"></i>
+									SALVAR
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="container-comandos" style="display: none;">
+					<div class="titulo-container-caixas">
+						<div class="icone-titulo-container-caixas"><i class="fa-solid fa-terminal"></i></div>
+						<div class="titulo-titulo-container-caixas">COMANDOS</div>
+						<div class="separador-titulo"></div>
+						<div class="search-comandos-fake">
+							<i class="fa-solid fa-search"></i>
+							<input type="text" placeholder="Pesquisar comando">
+						</div>
+						<div class="descricao-container-caixas">Clique em <b>executar</b> para usar o comando</div>
+					</div>
+					<div class="overflow-comandos" id="overflow-comandos">
+				
+					</div>
+				</div>
+
+			</div>
+		</div>
+
+		<script src="jquery.js" type="text/javascript"></script>
+
+	</body>
+</html>
