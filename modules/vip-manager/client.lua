@@ -45,7 +45,7 @@ RegisterNUICallback("vipAdminGrant", function(data, cb)
             return lib.callback.await('mri_esc:vip:admin:grant', false, {
                 citizenId = data.citizenId,
                 tier = data.tier,
-                durationDays = data.days or 30
+                durationDays = data.durationDays or 30
             })
         end)
 
