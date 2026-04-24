@@ -18,6 +18,7 @@ client_scripts {
 }
 
 server_scripts {
+    '@oxmysql/lib/MySQL.lua',
     'modules/vip-manager/server.lua',
     'script/server-side/*.lua'
 }

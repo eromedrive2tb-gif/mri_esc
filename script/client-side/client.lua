@@ -122,6 +122,11 @@ RegisterCommand("open_menu", function()
             tabs      = BuildTabsConfig()
         })
 
+        -- Se admin, avisa os módulos para carregarem os dados administrativos
+        if isAdmin then
+            TriggerEvent('mri_esc:client:adminReady')
+        end
+
         Wait(50)
         
         SetNuiFocus(true, true)

@@ -147,6 +147,7 @@ document.addEventListener('alpine:init', () => {
         isOpen: false,
         activeTab: 'inicio',
         isAdmin: false,
+        adminList: [],  // lista VIP admin — populada via SendNUIMessage 'updateAdminList'
         player: { 
             name: '', id: '', job: 'Desempregado', 
             money: 0, bank: 0, playersOn: 0 
@@ -391,6 +392,16 @@ const App = {
                 store.player.money = data.coins;
                 store.player.bank = data.coinsArma;
                 break;
+
+            // Lista VIP admin — enviada pelo client.lua via SendNUIMessage
+            case 'updateAdminList':
+                store.adminList = Array.isArray(data.list) ? data.list : [];
+                break;
+
+            // Resultado de ação admin (grant/revoke/extend) — para exibir toast
+            case 'adminActionResult':
+                window.dispatchEvent(new CustomEvent('mri:adminResult', { detail: data }));
+                break;
         }
     },
 
@@ -460,36 +471,47 @@ function miraComponent() {
 
 // ─────────────────────────────────────────────────────────────
 //  Admin VIP Panel Component
+//  Dados via SendNUIMessage 'updateAdminList' → store.adminList
+//  Ações via Nui.post + SendNUIMessage 'adminActionResult'
 // ─────────────────────────────────────────────────────────────
 function adminVipPanel() {
     return {
-        list: [],
         search: '',
         searchResults: [],
         searching: false,
         loading: false,
         toast: null,
 
-        // Modal: grant/extend
         modal: {
             open: false,
-            mode: 'grant',     // 'grant' | 'extend'
+            mode: 'grant',
             citizenId: '',
             playerName: '',
             tier: 'tier1',
-            duration: '30',    // dias; '0' = permanente
+            duration: '30',
         },
 
-        // Confirmação revogação
         confirm: {
             open: false,
             citizenId: '',
             playerName: '',
         },
 
+        // Lista vem do store (populada via SendNUIMessage)
+        get list() { return Alpine.store('ui').adminList || []; },
+
         // ── init ──────────────────────────────────────────────
-        async init() {
-            await this.loadList();
+        init() {
+            // Escuta resultados de ações (grant/revoke/extend)
+            window.addEventListener('mri:adminResult', (e) => {
+                const { operation, result } = e.detail || {};
+                if (result?.success) {
+                    const msgs = { grant: 'VIP concedido!', revoke: 'VIP revogado.', extend: 'VIP renovado!' };
+                    this.showToast('success', msgs[operation] || 'Operação realizada.');
+                } else {
+                    this.showToast('error', result?.error || 'Erro desconhecido');
+                }
+            });
         },
 
         // ── helpers ───────────────────────────────────────────
@@ -509,10 +531,10 @@ function adminVipPanel() {
 
         statusClass(row) {
             if (!row.expires_at) return 'st-perm';
-            const now   = Math.floor(Date.now() / 1000);
-            const diff  = row.expires_at - now;
-            if (diff <= 0)          return 'st-expired';
-            if (diff <= 7 * 86400)  return 'st-warn';
+            const now  = Math.floor(Date.now() / 1000);
+            const diff = row.expires_at - now;
+            if (diff <= 0)         return 'st-expired';
+            if (diff <= 7 * 86400) return 'st-warn';
             return 'st-ok';
         },
 
@@ -521,32 +543,30 @@ function adminVipPanel() {
             const now  = Math.floor(Date.now() / 1000);
             const diff = row.expires_at - now;
             if (diff <= 0) return 'EXPIRADO';
-            const days = Math.floor(diff / 86400);
-            return `${days}d restantes`;
+            return `${Math.floor(diff / 86400)}d restantes`;
         },
 
         filtered() {
             const q = this.search.toLowerCase().trim();
             if (!q) return this.list;
             return this.list.filter(r =>
-                r.citizenid.toLowerCase().includes(q) ||
-                (r.name && r.name.toLowerCase().includes(q))
+                r.citizenid?.toLowerCase().includes(q) ||
+                r.name?.toLowerCase().includes(q)
             );
         },
 
-        // ── load full list ─────────────────────────────────────
+        // ── refresh (ATUALIZAR btn) — push-based ───────────────
         async loadList() {
             this.loading = true;
-            const res = await Nui.post('vip:admin:list');
-            this.list    = (res && res.data) ? res.data : [];
-            this.loading = false;
+            await Nui.post('vipAdminRefresh'); // cb({}) imediato; dados chegam via updateAdminList
+            setTimeout(() => { this.loading = false; }, 1500);
         },
 
         // ── player search (for grant to non-VIP) ──────────────
         async searchPlayer() {
             if (this.search.length < 2) return;
             this.searching = true;
-            const res = await Nui.post('vip:admin:search', { query: this.search });
+            const res = await Nui.post('vipAdminSearch', { query: this.search });
             this.searchResults = Array.isArray(res) ? res : [];
             this.searching = false;
         },
@@ -554,56 +574,36 @@ function adminVipPanel() {
         // ── open grant modal ───────────────────────────────────
         openGrant(citizenId, name) {
             this.modal = {
-                open: true,
-                mode: 'grant',
-                citizenId,
+                open: true, mode: 'grant', citizenId,
                 playerName: name || citizenId,
-                tier: 'tier1',
-                duration: '30',
+                tier: 'tier1', duration: '30',
             };
         },
 
         // ── open extend modal ──────────────────────────────────
         openExtend(row) {
             this.modal = {
-                open: true,
-                mode: 'extend',
+                open: true, mode: 'extend',
                 citizenId: row.citizenid,
                 playerName: row.name || row.citizenid,
-                tier: row.tier,
-                duration: '30',
+                tier: row.tier, duration: '30',
             };
         },
 
-        // ── confirm grant / extend ─────────────────────────────
-        async confirmGrant() {
-            const days = parseInt(this.modal.duration) || 0;
-            let res;
+        // ── confirm grant / extend (fire-and-forget) ───────────
+        confirmGrant() {
+            const days      = parseInt(this.modal.duration) || 0;
+            const mode      = this.modal.mode;
+            const citizenId = this.modal.citizenId;
 
-            if (this.modal.mode === 'grant') {
-                res = await Nui.post('vip:admin:grant', {
-                    citizenId:    this.modal.citizenId,
-                    tier:         this.modal.tier,
-                    durationDays: days,
-                });
+            if (mode === 'grant') {
+                Nui.post('vipAdminGrant', { citizenId, tier: this.modal.tier, durationDays: days });
             } else {
-                res = await Nui.post('vip:admin:extend', {
-                    citizenId: this.modal.citizenId,
-                    days:      days,
-                });
+                Nui.post('vipAdminExtend', { citizenId, days });
             }
 
             this.modal.open = false;
-            if (res && res.success) {
-                this.showToast('success',
-                    this.modal.mode === 'grant'
-                        ? `VIP concedido a ${this.modal.playerName}!`
-                        : `VIP de ${this.modal.playerName} renovado por ${days} dias!`
-                );
-                await this.loadList();
-            } else {
-                this.showToast('error', (res && res.error) || 'Erro desconhecido');
-            }
+            // Toast e refresh chegam via SendNUIMessage 'adminActionResult' + 'updateAdminList'
         },
 
         // ── open revoke confirm ────────────────────────────────
@@ -615,18 +615,13 @@ function adminVipPanel() {
             };
         },
 
-        // ── execute revoke ─────────────────────────────────────
-        async executeRevoke() {
-            const res = await Nui.post('vip:admin:revoke', {
-                citizenId: this.confirm.citizenId,
-            });
+        // ── execute revoke (fire-and-forget) ───────────────────
+        executeRevoke() {
+            const citizenId = this.confirm.citizenId;
             this.confirm.open = false;
-            if (res && res.success) {
-                this.showToast('success', `VIP de ${this.confirm.playerName} revogado.`);
-                await this.loadList();
-            } else {
-                this.showToast('error', (res && res.error) || 'Erro ao revogar');
-            }
+            Nui.post('vipAdminRevoke', { citizenId });
+            // Toast e refresh chegam via eventos
         },
     };
-}
+}
+

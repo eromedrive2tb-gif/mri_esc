@@ -1,93 +1,120 @@
 -- =============================================================
 --  mri_esc — VIP Manager Module (Client)
---  Callbacks NUI do painel admin + verificação de permissão
+--  Replica exatamente as funções do mri_Qbox/vip.lua
+--  usando os callbacks e eventos já existentes e funcionais
 -- =============================================================
 
-local isAdmin = false
+-- ── Buscar lista VIP (replica getMenuEntries do mri_Qbox) ─────
+-- Usa mri_Qbox:server:getVip que JÁ FUNCIONA e retorna:
+-- { vip = [{citizenId, name, role, source, offline, displayName}], onlineVip, offlineVip }
+-- ── Buscar lista VIP consolidada (Qbox Metadata + MRI Records) ─────
+local function PushAdminList()
+    CreateThread(function()
+        -- Pequeno delay para garantir que a UI Alpine carregou o componente adminVipPanel
+        Wait(500)
 
--- ─────────────────────────────────────────────────────────────
---  Verifica permissão real via servidor (IsPlayerAceAllowed
---  não funciona no client-side do FiveM)
--- ─────────────────────────────────────────────────────────────
+        local ok, result = pcall(function()
+            return lib.callback.await('mri_esc:vip:admin:list', false)
+        end)
 
-CreateThread(function()
-    Wait(2000) -- aguarda player carregar completamente
-    local ok, result = pcall(function()
-        return lib.callback.await('mri_esc:vip:admin:checkPerm', false)
-    end)
-    if ok and result then
-        isAdmin = true
-    end
-end)
+        if not ok or not result or not result.list then
+            SendNUIMessage({ action = 'updateAdminList', list = {}, stats = { total = 0, online = 0, offline = 0 } })
+            return
+        end
 
-AddEventHandler('mri_esc:client:setAdmin', function(val)
-    isAdmin = val == true
-end)
-
--- ─────────────────────────────────────────────────────────────
---  Exporta flag de admin para client.lua principal
--- ─────────────────────────────────────────────────────────────
-
-exports('IsVipAdmin', function()
-    return isAdmin
-end)
-
--- ─────────────────────────────────────────────────────────────
---  NUI Callbacks — painel admin
--- ─────────────────────────────────────────────────────────────
-
-RegisterNUICallback("vip:admin:list", function(_, cb)
-    if not isAdmin then cb({ success = false, data = {} }); return end
-
-    local ok, result = pcall(function()
-        return lib.callback.await('mri_esc:vip:admin:list', false)
-    end)
-    cb({ success = true, data = (ok and result) or {} })
-end)
-
-RegisterNUICallback("vip:admin:grant", function(data, cb)
-    if not isAdmin then cb({ success = false, error = "Sem permissão" }); return end
-
-    local ok, result = pcall(function()
-        return lib.callback.await('mri_esc:vip:admin:grant', false, {
-            citizenId    = data.citizenId,
-            tier         = data.tier,
-            durationDays = data.durationDays
+        -- Envia a lista e as estatísticas consolidadas para a NUI
+        SendNUIMessage({
+            action = 'updateAdminList',
+            list   = result.list,
+            stats  = result.stats,
         })
     end)
-    cb((ok and result) or { success = false, error = "Erro interno" })
+end
+
+-- ── ATUALIZAR (botão Refresh) ─────────────────────────────────
+RegisterNUICallback("vipAdminRefresh", function(_, cb)
+    cb({})          -- desbloqueia o NUI imediatamente
+    PushAdminList() -- busca e empurra dados em background
 end)
 
-RegisterNUICallback("vip:admin:revoke", function(data, cb)
-    if not isAdmin then cb({ success = false, error = "Sem permissão" }); return end
+-- ── CONCEDER VIP ─────────────────────────────────────────────
+RegisterNUICallback("vipAdminGrant", function(data, cb)
+    cb({})
+    CreateThread(function()
+        local ok, result = pcall(function()
+            return lib.callback.await('mri_esc:vip:admin:grant', false, {
+                citizenId = data.citizenId,
+                tier = data.tier,
+                durationDays = data.days or 30
+            })
+        end)
 
-    local ok, result = pcall(function()
-        return lib.callback.await('mri_esc:vip:admin:revoke', false, {
-            citizenId = data.citizenId
-        })
+        local res = (ok and result) or { success = false, error = "Erro ao processar no servidor" }
+        SendNUIMessage({ action = 'adminActionResult', operation = 'grant', result = res })
+        if res.success then
+            Wait(500)
+            PushAdminList()
+        end
     end)
-    cb((ok and result) or { success = false, error = "Erro interno" })
 end)
 
-RegisterNUICallback("vip:admin:extend", function(data, cb)
-    if not isAdmin then cb({ success = false, error = "Sem permissão" }); return end
+-- ── REVOGAR VIP ──────────────────────────────────────────────
+RegisterNUICallback("vipAdminRevoke", function(data, cb)
+    cb({})
+    CreateThread(function()
+        local ok, result = pcall(function()
+            return lib.callback.await('mri_esc:vip:admin:revoke', false, {
+                citizenId = data.citizenId
+            })
+        end)
 
-    local ok, result = pcall(function()
-        return lib.callback.await('mri_esc:vip:admin:extend', false, {
-            citizenId = data.citizenId,
-            days      = data.days
-        })
+        local res = (ok and result) or { success = false, error = "Erro ao processar no servidor" }
+        SendNUIMessage({ action = 'adminActionResult', operation = 'revoke', result = res })
+        if res.success then
+            Wait(500)
+            PushAdminList()
+        end
     end)
-    cb((ok and result) or { success = false, error = "Erro interno" })
 end)
 
-RegisterNUICallback("vip:admin:search", function(data, cb)
-    if not isAdmin then cb({}); return end
-
-    local ok, result = pcall(function()
-        return lib.callback.await('mri_esc:vip:admin:search', false, {
-            query = data.query or ""
-        })
+-- ── RENOVAR VIP (estender prazo via mri_esc DB) ──────────────
+-- mri_Qbox não tem extensão de prazo, então mantemos o callback próprio
+RegisterNUICallback("vipAdminExtend", function(data, cb)
+    cb({})
+    CreateThread(function()
+        local ok, result = pcall(function()
+            return lib.callback.await('mri_esc:vip:admin:extend', false, {
+                citizenId = data.citizenId,
+                days      = data.days
+            })
+        end)
+        local res = (ok and result) or { success = false, error = "Erro interno" }
+        SendNUIMessage({ action = 'adminActionResult', operation = 'extend', result = res })
+        if res.success then
+            Wait(300)
+            PushAdminList()
+        end
     end)
-    cb((ok and result) or {})
+end)
+
+-- ── BUSCA DE JOGADORES ────────────────────────────────────────
+-- Replica findPlayers do mri_Qbox + pesquisa no DB offline
+RegisterNUICallback("vipAdminSearch", function(data, cb)
+    CreateThread(function()
+        if not data.query or #data.query < 2 then cb({}); return end
+
+        local ok, result = pcall(function()
+            return lib.callback.await('mri_esc:vip:admin:search', false, {
+                query = data.query
+            })
+        end)
+        cb((ok and result) or {})
+    end)
+end)
+
+-- ── Auto-push quando menu abre (case admin já estava na aba) ──
+-- Garante que a lista é populada mesmo se o SendNUIMessage do client.lua
+-- chegar antes do componente Alpine estar pronto
+AddEventHandler('mri_esc:client:adminReady', function()
+    PushAdminList()
 end)
