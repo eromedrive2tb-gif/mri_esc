@@ -1174,3 +1174,193 @@ body {
 .adm-toast.toast-error {
   background: rgba(255,71,87,0.12); border: 1px solid rgba(255,71,87,0.3); color: var(--red);
 }
+
+/* --- Admin Tab Switcher --- */
+.adm-tab-switcher {
+  display: flex;
+  background: var(--d700);
+  border: 1px solid var(--glass-b);
+  border-radius: 12px;
+  padding: 5px;
+  margin-bottom: 20px;
+  gap: 5px;
+}
+.adm-tab-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--t3);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.adm-tab-item:hover {
+  background: var(--glass);
+  color: var(--t2);
+}
+.ats-active {
+  background: var(--blue-glow) !important;
+  color: var(--blue-l) !important;
+  box-shadow: 0 4px 15px var(--blue-glow);
+}
+
+/* --- Plans Grid & Cards --- */
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  padding-right: 5px;
+}
+.plan-card {
+  background: var(--d700);
+  border: 1px solid var(--glass-b);
+  border-radius: 14px;
+  padding: 20px;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+.plan-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.pc-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.pc-icon {
+  width: 42px;
+  height: 42px;
+  background: rgba(255,215,0,0.1);
+  color: var(--gold);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.pc-info { flex: 1; }
+.pc-label { font-size: 14px; font-weight: 800; color: var(--gold); letter-spacing: 1px; }
+.pc-id { font-size: 10px; color: var(--t3); text-transform: uppercase; letter-spacing: 0.5px; }
+
+.pc-actions {
+  display: flex;
+  gap: 6px;
+}
+.btn-pc-edit, .btn-pc-del {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--glass);
+  color: var(--t2);
+}
+.btn-pc-edit:hover { background: var(--blue-glow); color: var(--blue-l); }
+.btn-pc-del:hover { background: rgba(255,71,87,0.15); color: var(--red); }
+
+.pc-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.pc-stat {
+  background: var(--d900);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.pcs-lbl { font-size: 8px; font-weight: 700; color: var(--t3); letter-spacing: 0.8px; margin-bottom: 2px; }
+.pcs-val { font-size: 13px; font-weight: 800; color: var(--t1); }
+
+.pc-benefits {
+  border-top: 1px solid var(--glass-b);
+  padding-top: 13px;
+}
+.pcb-title { font-size: 10px; font-weight: 800; color: var(--t3); margin-bottom: 10px; letter-spacing: 1px; }
+.pcb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--t2);
+  margin-bottom: 6px;
+}
+.pcb-item i { font-size: 10px; color: var(--green); opacity: 0.7; }
+
+/* --- Complex Modal Layouts --- */
+.adm-modal-wide { width: 750px !important; }
+.modal-multi-col {
+  display: grid;
+  grid-template-columns: 1.2fr 1.5fr;
+  gap: 30px;
+}
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.field-sub { font-size: 9px; color: var(--t3); margin-top: -2px; }
+
+.modal-benefits-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.benefits-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.benefit-edit-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.btn-del-benefit {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 8px;
+  background: rgba(255,71,87,0.1);
+  color: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.btn-add-benefit {
+  margin-top: 5px;
+  padding: 10px;
+  border: 1px dashed var(--glass-b);
+  border-radius: 9px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--t2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-add-benefit:hover {
+  background: var(--glass);
+  border-color: var(--blue-glow);
+  color: var(--blue-l);
+}

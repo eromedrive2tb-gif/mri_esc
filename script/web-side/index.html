@@ -337,14 +337,31 @@
 								<div class="ct-head">
 									<div class="ct-feat">Benefício</div>
 									<div class="ct-free">GRATUITO</div>
-									<div class="ct-vip">VIP TIER 1</div>
+									<div class="ct-vip" x-text="(store.plans[0] ? store.plans[0].label : 'VIP TIER 1').toUpperCase()"></div>
 								</div>
-								<div class="ct-row"><div class="ct-feat">Salário automático</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
-								<div class="ct-row"><div class="ct-feat">+100kg no inventário</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
-								<div class="ct-row"><div class="ct-feat">R$ 5.000 a cada 30 min</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
-								<div class="ct-row"><div class="ct-feat">Prioridade na fila</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
-								<div class="ct-row"><div class="ct-feat">Acesso antecipado</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
-								<div class="ct-row"><div class="ct-feat">Suporte prioritário</div><div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div><div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div></div>
+								<div class="ct-row">
+									<div class="ct-feat">Salário Automático</div>
+									<div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div>
+									<div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div>
+								</div>
+								<div class="ct-row">
+									<div class="ct-feat">Valor do Salário</div>
+									<div class="ct-free">R$ 0</div>
+									<div class="ct-vip" x-text="store.formatMoney(store.plans[0] ? store.plans[0].payment : 0)"></div>
+								</div>
+								<div class="ct-row">
+									<div class="ct-feat">Peso Extra Inv.</div>
+									<div class="ct-free">0 kg</div>
+									<div class="ct-vip" x-text="(store.plans[0] ? store.plans[0].inventory : 0) + ' kg'"></div>
+								</div>
+								<!-- Itens dinâmicos do plano principal -->
+								<template x-for="benefit in (store.plans[0] ? (store.plans[0].benefits || []) : [])" :key="benefit">
+									<div class="ct-row">
+										<div class="ct-feat" x-text="benefit"></div>
+										<div class="ct-free"><i class="fa-solid fa-xmark ct-no"></i></div>
+										<div class="ct-vip"><i class="fa-solid fa-check ct-yes"></i></div>
+									</div>
+								</template>
 							</div>
 						</div>
 					</div>
@@ -375,11 +392,11 @@
 						<!-- CTA Block (no VIP) -->
 						<div class="vip-block cta-vip-block" x-show="store.vip.tier === 'nenhum'">
 							<div class="vblock-title"><i class="fa-solid fa-fire" style="color: var(--red);"></i> <span style="color: var(--gold);">OFERTA EXCLUSIVA</span></div>
-							<div class="cta-plan-name">VIP TIER 1</div>
+							<div class="cta-plan-name" x-text="store.plans[0] ? store.plans[0].label : 'VIP TIER 1'"></div>
 							<div class="cta-perks">
-								<div class="cta-perk"><i class="fa-solid fa-bolt"></i> R$ 5.000 a cada 30 minutos</div>
-								<div class="cta-perk"><i class="fa-solid fa-box"></i> +100kg de capacidade</div>
-								<div class="cta-perk"><i class="fa-solid fa-star"></i> Acesso prioritário ao servidor</div>
+								<template x-for="benefit in (store.plans[0] ? (store.plans[0].benefits || []) : [])" :key="benefit">
+									<div class="cta-perk"><i class="fa-solid fa-bolt"></i> <span x-text="benefit"></span></div>
+								</template>
 							</div>
 							<div class="btn-cta-buy">
 								<div class="btn-shimmer"></div>
@@ -574,6 +591,19 @@
 				<div class="panel-subtitle">Gerencie, conceda e revogue planos VIP de jogadores</div>
 			</div>
 
+			<!-- Sub-tab Selector -->
+			<div class="adm-tab-switcher">
+				<div class="adm-tab-item" :class="subTab === 'players' ? 'ats-active' : ''" @click="subTab = 'players'">
+					<i class="fa-solid fa-users"></i> GERENCIAR JOGADORES
+				</div>
+				<div class="adm-tab-item" :class="subTab === 'plans' ? 'ats-active' : ''" @click="subTab = 'plans'; loadPlans()">
+					<i class="fa-solid fa-gem"></i> CONFIGURAR PLANOS
+				</div>
+			</div>
+
+			<!-- SECTION: PLAYERS MANAGEMENT -->
+			<div x-show="subTab === 'players'" x-transition.opacity>
+
 			<!-- Stats Row -->
 			<div class="adm-stats">
 				<div class="adm-stat">
@@ -656,6 +686,62 @@
 					<i class="fa-solid fa-spinner fa-spin"></i> Carregando...
 				</div>
 			</div>
+			</div> <!-- END players section -->
+
+			<!-- SECTION: PLANS MANAGEMENT -->
+			<div x-show="subTab === 'plans'" x-transition.opacity>
+				<div class="adm-toolbar">
+					<div class="search-wrap adm-search">
+						<i class="fa-solid fa-search"></i>
+						<input type="text" class="search-input" placeholder="Buscar plano..." x-model="searchPlans">
+					</div>
+					<div class="btn-adm-refresh" @click="loadPlans()">
+						<i class="fa-solid fa-rotate-right" :class="loading ? 'fa-spin' : ''"></i> ATUALIZAR
+					</div>
+					<div class="btn-adm-grant-new" @click="openPlanModal()">
+						<i class="fa-solid fa-plus"></i> NOVO PLANO
+					</div>
+				</div>
+
+				<div class="plans-grid">
+					<template x-for="p in filteredPlans()" :key="p.id">
+						<div class="plan-card">
+							<div class="pc-header">
+								<div class="pc-icon"><i class="fa-solid fa-gem"></i></div>
+								<div class="pc-info">
+									<div class="pc-label" x-text="p.label"></div>
+									<div class="pc-id" x-text="p.id"></div>
+								</div>
+								<div class="pc-actions">
+									<div class="btn-pc-edit" @click="openPlanModal(p)" title="Editar"><i class="fa-solid fa-pen-to-square"></i></div>
+									<div class="btn-pc-del" @click="deletePlan(p.id)" title="Deletar"><i class="fa-solid fa-trash"></i></div>
+								</div>
+							</div>
+							<div class="pc-stats">
+								<div class="pc-stat">
+									<div class="pcs-lbl">SALÁRIO</div>
+									<div class="pcs-val" x-text="formatMoney(p.payment)"></div>
+								</div>
+								<div class="pc-stat">
+									<div class="pcs-lbl">PESO EXTRA</div>
+									<div class="pcs-val" x-text="p.inventory + ' kg'"></div>
+								</div>
+							</div>
+							<div class="pc-benefits">
+								<div class="pcb-title">BENEFÍCIOS:</div>
+								<template x-for="b in p.benefits" :key="b">
+									<div class="pcb-item"><i class="fa-solid fa-check"></i> <span x-text="b"></span></div>
+								</template>
+							</div>
+						</div>
+					</template>
+				</div>
+				
+				<div class="adm-empty" x-show="!loading && filteredPlans().length === 0">
+					<i class="fa-solid fa-inbox"></i>
+					<span>Nenhum plano configurado</span>
+				</div>
+			</div>
 
 			<!-- ===== MODAL: Grant / Extend ===== -->
 			<div class="adm-modal-backdrop" x-show="modal.open" x-transition.opacity @click.self="modal.open = false">
@@ -682,9 +768,9 @@
 						<div class="adm-field" x-show="modal.mode === 'grant'">
 							<label class="adm-field-lbl"><i class="fa-solid fa-gem"></i> Plano VIP</label>
 							<select class="adm-field-inp adm-select" x-model="modal.tier">
-								<option value="tier1">Tier 1</option>
-								<option value="tier2">Tier 2</option>
-								<option value="tier3">Tier 3</option>
+								<template x-for="p in plans" :key="p.id">
+									<option :value="p.id" x-text="p.label"></option>
+								</template>
 							</select>
 						</div>
 
@@ -731,6 +817,65 @@
 						<div class="btn-adm-cancel" @click="confirm.open = false">CANCELAR</div>
 						<div class="btn-adm-confirm btn-danger-confirm" @click="executeRevoke()">
 							<i class="fa-solid fa-ban"></i> CONFIRMAR REVOGAÇÃO
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- ===== MODAL: Edit Plan ===== -->
+			<div class="adm-modal-backdrop" x-show="planModal.open" x-transition.opacity @click.self="planModal.open = false">
+				<div class="adm-modal adm-modal-wide" x-transition.scale>
+					<div class="adm-modal-header">
+						<div class="adm-modal-title">
+							<i class="fa-solid fa-gem"></i>
+							<span x-text="planModal.isNew ? 'CRIAR NOVO PLANO' : 'EDITAR PLANO'"></span>
+						</div>
+						<div class="adm-modal-close" @click="planModal.open = false"><i class="fa-solid fa-xmark"></i></div>
+					</div>
+					<div class="adm-modal-body">
+						<div class="modal-multi-col">
+							<div class="modal-main-fields">
+								<div class="adm-field">
+									<label class="adm-field-lbl">Identificador (ID)</label>
+									<input type="text" class="adm-field-inp" x-model="planModal.id" :disabled="!planModal.isNew" placeholder="Ex: tier1">
+									<span class="field-sub">O ID deve ser único e sem espaços.</span>
+								</div>
+								<div class="adm-field">
+									<label class="adm-field-lbl">Nome de Exibição</label>
+									<input type="text" class="adm-field-inp" x-model="planModal.label" placeholder="Ex: VIP OURO">
+								</div>
+								<div class="form-row-2">
+									<div class="adm-field">
+										<label class="adm-field-lbl">Salário (R$)</label>
+										<input type="number" class="adm-field-inp" x-model="planModal.payment">
+									</div>
+									<div class="adm-field">
+										<label class="adm-field-lbl">Peso Extra (kg)</label>
+										<input type="number" class="adm-field-inp" x-model="planModal.inventory">
+									</div>
+								</div>
+							</div>
+							
+							<div class="modal-benefits-editor">
+								<label class="adm-field-lbl">Benefícios do Plano</label>
+								<div class="benefits-edit-list">
+									<template x-for="(benefit, index) in planModal.benefits" :key="index">
+										<div class="benefit-edit-item">
+											<input type="text" x-model="planModal.benefits[index]" class="adm-field-inp">
+											<div class="btn-del-benefit" @click="planModal.benefits.splice(index, 1)"><i class="fa-solid fa-times"></i></div>
+										</div>
+									</template>
+									<div class="btn-add-benefit" @click="planModal.benefits.push('')">
+										<i class="fa-solid fa-plus"></i> ADICIONAR BENEFÍCIO
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="adm-modal-footer">
+						<div class="btn-adm-cancel" @click="planModal.open = false">CANCELAR</div>
+						<div class="btn-adm-confirm" @click="savePlan()">
+							<i class="fa-solid fa-floppy-disk"></i> SALVAR PLANO
 						</div>
 					</div>
 				</div>

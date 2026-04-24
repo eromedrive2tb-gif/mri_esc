@@ -10,6 +10,9 @@ local paycheckInterval = 30
 local intervalMs       = paycheckInterval * 60 * 1000
 local mysqlReady       = false
 
+-- Cache global dos planos para acesso rápido
+VipPlansConfigs = {}
+
 -- ─────────────────────────────────────────────────────────────
 --  AGUARDA MYSQL
 -- ─────────────────────────────────────────────────────────────
@@ -32,7 +35,7 @@ CreateThread(function()
         return
     end
 
-    -- Cria tabela
+    -- Cria tabelas
     pcall(function()
         MySQL.query([[
             CREATE TABLE IF NOT EXISTS `mri_vip_records` (
@@ -45,13 +48,26 @@ CreateThread(function()
                 `granted_by`     VARCHAR(100) DEFAULT 'system',
                 `updated_at`     INT(11)      DEFAULT NULL,
                 PRIMARY KEY (`citizenid`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ]])
-        print("[VIP Manager] Tabela mri_vip_records pronta.")
+
+        MySQL.query([[
+            CREATE TABLE IF NOT EXISTS `mri_vip_plans` (
+                `id`         VARCHAR(50)  NOT NULL,
+                `label`      VARCHAR(100) NOT NULL,
+                `payment`    INT          NOT NULL DEFAULT 0,
+                `inventory`  INT          NOT NULL DEFAULT 0,
+                `benefits`   LONGTEXT     DEFAULT '[]',
+                `updated_at` INT(11)      DEFAULT NULL,
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        ]])
     end)
 
-    -- Verifica expirados ao iniciar
-    Wait(1000)
+    -- Carrega planos e verifica expirados
+    Wait(500)
+    LoadVipPlans()
+    
     local ok, expired = pcall(function()
         return MySQL.query.await([[
             SELECT citizenid FROM mri_vip_records
@@ -66,13 +82,40 @@ CreateThread(function()
     end
 end)
 
+-- ── CARREGAMENTO DE PLANOS ───────────────────────────────────
+function LoadVipPlans()
+    if not mysqlReady then return end
+    local ok, results = pcall(function()
+        return MySQL.query.await("SELECT * FROM mri_vip_plans")
+    end)
+    
+    if ok and results and #results > 0 then
+        local newPlans = {}
+        for _, p in ipairs(results) do
+            newPlans[p.id] = {
+                label     = p.label,
+                payment   = p.payment,
+                inventory = p.inventory,
+                benefits  = json.decode(p.benefits or "[]")
+            }
+        end
+        VipPlansConfigs = newPlans
+        print(("[VIP Manager] %d planos VIP carregados do DB."):format(#results))
+    else
+        -- Caso a tabela esteja vazia, popula com os defaults mas não salva (admin deve salvar via UI)
+        VipPlansConfigs = {
+            tier1 = { label = "Tier 1", payment = 5000, inventory = 200, benefits = {"Salário de R$ 5.000", "+100kg no inventário"} }
+        }
+    end
+end
+
 -- ─────────────────────────────────────────────────────────────
 --  HELPERS
 -- ─────────────────────────────────────────────────────────────
 
 local function GetVipConfigs()
-    local ok, cfg = pcall(function() return exports.mri_Qbox:GetVipConfig() end)
-    if ok and cfg then return cfg end
+    if VipPlansConfigs and next(VipPlansConfigs) then return VipPlansConfigs end
+    -- Fallback final
     return {
         nenhum = { label = "Sem VIP", payment = 0,    inventory = 100 },
         tier1  = { label = "Tier 1",  payment = 5000, inventory = 200 },

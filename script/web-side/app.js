@@ -159,6 +159,7 @@ document.addEventListener('alpine:init', () => {
         redesSociais: { instagram: '', tiktok: '', youtube: '' },
         comandos: [],
         comandosSearch: '',
+        plans: [],
         
         tabs: [
             { id: 'inicio', label: 'INÍCIO', icon: 'fa-bars', action: 'inicio' },
@@ -227,6 +228,10 @@ document.addEventListener('alpine:init', () => {
             }
             if (data.timeLeft !== undefined) {
                 this.vip.paycheckTime = data.timeLeft;
+            }
+            // Lista de planos para comparativo
+            if (data.allPlans) {
+                this.plans = data.allPlans;
             }
             this.startPaycheckTimer();
         },
@@ -481,6 +486,9 @@ function adminVipPanel() {
         searching: false,
         loading: false,
         toast: null,
+        subTab: 'players', // 'players' ou 'plans'
+        plans: [],
+        searchPlans: '',
 
         modal: {
             open: false,
@@ -489,6 +497,16 @@ function adminVipPanel() {
             playerName: '',
             tier: 'tier1',
             duration: '30',
+        },
+
+        planModal: {
+            open: false,
+            isNew: true,
+            id: '',
+            label: '',
+            payment: 0,
+            inventory: 0,
+            benefits: []
         },
 
         confirm: {
@@ -502,6 +520,7 @@ function adminVipPanel() {
 
         // ── init ──────────────────────────────────────────────
         init() {
+            this.loadPlans();
             // Escuta resultados de ações (grant/revoke/extend)
             window.addEventListener('mri:adminResult', (e) => {
                 const { operation, result } = e.detail || {};
@@ -617,11 +636,82 @@ function adminVipPanel() {
 
         // ── execute revoke (fire-and-forget) ───────────────────
         executeRevoke() {
-            const citizenId = this.confirm.citizenId;
             this.confirm.open = false;
             Nui.post('vipAdminRevoke', { citizenId });
             // Toast e refresh chegam via eventos
         },
+
+        // ── GERENCIAMENTO DE PLANOS (CRUD) ──────────────────────
+        async loadPlans() {
+            this.loading = true;
+            try {
+                const res = await Nui.post('vipAdminGetPlans');
+                this.plans = Array.isArray(res) ? res : [];
+            } catch (e) { console.error(e); }
+            this.loading = false;
+        },
+
+        filteredPlans() {
+            const q = this.searchPlans.toLowerCase().trim();
+            if (!q) return this.plans;
+            return this.plans.filter(p => 
+                p.label.toLowerCase().includes(q) || 
+                p.id.toLowerCase().includes(q)
+            );
+        },
+
+        openPlanModal(plan = null) {
+            if (plan) {
+                this.planModal = {
+                    open: true, isNew: false,
+                    id: plan.id, label: plan.label,
+                    payment: plan.payment, inventory: plan.inventory,
+                    benefits: Array.isArray(plan.benefits) ? [...plan.benefits] : []
+                };
+            } else {
+                this.planModal = {
+                    open: true, isNew: true,
+                    id: '', label: '',
+                    payment: 5000, inventory: 100,
+                    benefits: ['']
+                };
+            }
+        },
+
+        async savePlan() {
+            if (!this.planModal.id || !this.planModal.label) {
+                return this.showToast('error', 'Preencha ID e Nome.');
+            }
+            
+            const data = {
+                id: this.planModal.id.trim().toLowerCase().replace(/\s+/g, '_'),
+                label: this.planModal.label.trim(),
+                payment: parseInt(this.planModal.payment) || 0,
+                inventory: parseInt(this.planModal.inventory) || 0,
+                benefits: this.planModal.benefits.map(b => b.trim()).filter(b => b !== '')
+            };
+
+            const res = await Nui.post('vipAdminSavePlan', data);
+            if (res && res.success) {
+                this.showToast('success', 'Plano salvo com sucesso!');
+                this.planModal.open = false;
+                this.loadPlans();
+            } else {
+                this.showToast('error', res?.error || 'Erro ao salvar plano.');
+            }
+        },
+
+        async deletePlan(id) {
+            if (confirm(`Atenção: Deseja realmente excluir o plano "${id}"? Isso não removerá o cargo dos jogadores que já o possuem, mas eles perderão os benefícios.`)) {
+                const res = await Nui.post('vipAdminDeletePlan', { id });
+                if (res && res.success) {
+                    this.showToast('success', 'Plano removido.');
+                    this.loadPlans();
+                } else {
+                    this.showToast('error', res?.error || 'Erro ao excluir.');
+                }
+            }
+        }
     };
 }
 

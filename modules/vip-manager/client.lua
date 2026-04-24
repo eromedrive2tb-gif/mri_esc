@@ -112,6 +112,24 @@ RegisterNUICallback("vipAdminSearch", function(data, cb)
     end)
 end)
 
+-- ── CARREGAR PLANOS ───────────────────────────────────────────
+RegisterNUICallback("vipAdminGetPlans", function(_, cb)
+    local plans = lib.callback.await('mri_esc:admin:getPlans', false)
+    cb(plans or {})
+end)
+
+-- ── SALVAR PLANO ──────────────────────────────────────────────
+RegisterNUICallback("vipAdminSavePlan", function(data, cb)
+    local res = lib.callback.await('mri_esc:admin:savePlan', false, data)
+    cb(res)
+end)
+
+-- ── DELETAR PLANO ─────────────────────────────────────────────
+RegisterNUICallback("vipAdminDeletePlan", function(data, cb)
+    local res = lib.callback.await('mri_esc:admin:deletePlan', false, data.id)
+    cb(res)
+end)
+
 -- ── Auto-push quando menu abre (case admin já estava na aba) ──
 -- Garante que a lista é populada mesmo se o SendNUIMessage do client.lua
 -- chegar antes do componente Alpine estar pronto

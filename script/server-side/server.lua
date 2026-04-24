@@ -75,28 +75,28 @@ lib.callback.register('mri_esc:server:getVipData', function(source)
     local coins   = player.PlayerData.money.coin or 0
     local cid     = player.PlayerData.citizenid
 
-    local vipConfigs = {
-        nenhum = {
-            label = "Sem VIP", payment = 0, inventory = 100,
-            benefits = { "Torne-se VIP para ganhar benefícios exclusivos!" }
-        },
-        tier1 = {
-            label = "Tier 1", payment = 5000, inventory = 200,
-            benefits = {
-                "Salário de R$ 5.000 a cada 30 min",
-                "Aumento de +100kg no inventário",
-                "Prioridade na fila de entrada",
-                "Acesso antecipado a novidades"
+    local vipConfigs = VipPlansConfigs or {}
+    if not next(vipConfigs) then
+        vipConfigs = {
+            nenhum = {
+                label = "Sem VIP", payment = 0, inventory = 100,
+                benefits = { "Torne-se VIP para ganhar benefícios exclusivos!" }
+            },
+            tier1 = {
+                label = "Tier 1", payment = 5000, inventory = 200,
+                benefits = {
+                    "Salário de R$ 5.000 a cada 30 min",
+                    "+100kg no inventário",
+                    "Prioridade na fila",
+                    "Suporte VIP"
+                }
             }
         }
-    }
-
-    local cfgOk, cfg = pcall(function() return exports.mri_Qbox:GetVipConfig() end)
-    if cfgOk and cfg then vipConfigs = cfg end
+    end
 
     local currentVipInfo = vipConfigs[vipTier] or vipConfigs['nenhum']
-    if not currentVipInfo.benefits or #currentVipInfo.benefits == 0 then
-        currentVipInfo.benefits = { "Benefícios não configurados para este tier." }
+    if not currentVipInfo then 
+        currentVipInfo = { label = "Inexistente", payment = 0, inventory = 100, benefits = {} }
     end
 
     local r           = SafeGetVipRecord(cid)
@@ -138,8 +138,25 @@ lib.callback.register('mri_esc:server:getVipData', function(source)
         totalEarned   = totalEarned,
         paycheckCount = paycheckCount,
         charName      = charName,
+        charJob       = player.PlayerData.job.label or 'Desempregado',
         citizenId     = cid,
         isAdmin       = IsAdminPlayer(source),
+        allPlans      = (function()
+            local p = {}
+            for id, cfg in pairs(vipConfigs) do
+                if id ~= 'nenhum' then
+                    p[#p+1] = {
+                        id = id,
+                        label = cfg.label,
+                        payment = cfg.payment,
+                        inventory = cfg.inventory,
+                        benefits = cfg.benefits
+                    }
+                end
+            end
+            table.sort(p, function(a,b) return (tonumber(a.payment) or 0) < (tonumber(b.payment) or 0) end)
+            return p
+        end)()
     }
 end)
 
@@ -406,4 +423,54 @@ lib.callback.register('mri_esc:vip:admin:search', function(source, data)
     end
 
     return results
+end)
+
+-- ── ADMIN: CARREGAR PLANOS ────────────────────────────────────
+lib.callback.register('mri_esc:admin:getPlans', function(source)
+    if not IsAdminPlayer(source) then return {} end
+    local plans = {}
+    -- VipPlansConfigs está definido em modules/vip-manager/server.lua
+    for id, cfg in pairs(VipPlansConfigs or {}) do
+        plans[#plans + 1] = {
+            id = id,
+            label = cfg.label,
+            payment = cfg.payment,
+            inventory = cfg.inventory,
+            benefits = cfg.benefits
+        }
+    end
+    return plans
+end)
+
+-- ── ADMIN: SALVAR PLANO ───────────────────────────────────────
+lib.callback.register('mri_esc:admin:savePlan', function(source, data)
+    if not IsAdminPlayer(source) then return { success = false, error = "Sem permissão" } end
+    if not data.id or not data.label then return { success = false, error = "Dados inválidos" } end
+    
+    local ok, err = pcall(function()
+        MySQL.query([[
+            INSERT INTO mri_vip_plans (id, label, payment, inventory, benefits, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                label=VALUES(label), payment=VALUES(payment), 
+                inventory=VALUES(inventory), benefits=VALUES(benefits), 
+                updated_at=VALUES(updated_at)
+        ]], { 
+            data.id, data.label, tonumber(data.payment) or 0, 
+            tonumber(data.inventory) or 0, json.encode(data.benefits or {}), os.time() 
+        })
+        -- Recarrega cache local (função global em modules/vip-manager/server.lua)
+        if LoadVipPlans then LoadVipPlans() end
+    end)
+    return { success = ok, error = not ok and tostring(err) or nil }
+end)
+
+-- ── ADMIN: DELETAR PLANO ──────────────────────────────────────
+lib.callback.register('mri_esc:admin:deletePlan', function(source, id)
+    if not IsAdminPlayer(source) then return { success = false, error = "Sem permissão" } end
+    local ok, err = pcall(function()
+        MySQL.query("DELETE FROM mri_vip_plans WHERE id = ?", { id })
+        if LoadVipPlans then LoadVipPlans() end
+    end)
+    return { success = ok, error = not ok and tostring(err) or nil }
 end)
