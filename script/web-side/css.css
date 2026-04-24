@@ -33,9 +33,9 @@
   --red: #FF4757;
 
   /* Glass */
-  --glass: rgba(255, 255, 255, 0.035);
-  --glass-b: rgba(255, 255, 255, 0.07);
-  --glass-h: rgba(255, 255, 255, 0.07);
+  --glass: rgba(5, 5, 10, 0.45);
+  --glass-b: rgba(255, 255, 255, 0.08);
+  --glass-h: rgba(255, 255, 255, 0.05);
 
   /* Text */
   --t1: #FFFFFF;
@@ -436,8 +436,9 @@ body {
   margin: 6px 0 2px;
   padding: 14px 12px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.18), rgba(255, 140, 0, 0.08));
-  border: 1px solid rgba(255, 215, 0, 0.35);
+  background: var(--glass);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 215, 0, 0.3);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -497,8 +498,9 @@ body {
   margin: 6px 0 2px;
   padding: 12px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(0, 148, 225, 0.12), rgba(255, 215, 0, 0.06));
-  border: 1px solid rgba(255, 215, 0, 0.2);
+  background: var(--glass);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 215, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -684,6 +686,7 @@ body {
 
 .quick-card {
   background: var(--glass);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-b);
   border-radius: 14px;
   padding: 26px 22px;
@@ -742,8 +745,9 @@ body {
 }
 
 .quick-card-vip {
-  border-color: rgba(255, 215, 0, 0.14);
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), rgba(255, 140, 0, 0.02));
+  border-color: rgba(255, 215, 0, 0.35);
+  background: var(--glass);
+  backdrop-filter: blur(10px);
 }
 
 .quick-card-vip:hover {
@@ -801,8 +805,9 @@ body {
 
 /* VIP Teaser */
 .vip-teaser {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(255, 140, 0, 0.05));
-  border: 1px solid rgba(255, 215, 0, 0.2);
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 215, 0, 0.25);
   border-radius: 14px;
   padding: 18px 22px;
   cursor: pointer;
@@ -1030,8 +1035,9 @@ body {
 
 /* VIP Active Bar */
 .vip-active-bar {
-  background: linear-gradient(135deg, rgba(0, 148, 225, 0.1), rgba(0, 30, 80, 0.06));
-  border: 1px solid rgba(0, 148, 225, 0.18);
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 148, 225, 0.25);
   border-radius: 14px;
   padding: 18px 22px;
   cursor: pointer;
@@ -1191,7 +1197,8 @@ body {
 
 .vstat {
   flex: 1;
-  background: var(--d700);
+  background: rgba(5, 5, 10, 0.5);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--glass-b);
   border-radius: 12px;
   padding: 16px 18px;
@@ -1275,7 +1282,8 @@ body {
 
 /* VIP Blocks */
 .vip-block {
-  background: var(--d700);
+  background: rgba(5, 5, 12, 0.5);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-b);
   border-radius: 14px;
   padding: 20px;
@@ -1653,7 +1661,8 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  background: var(--d700);
+  background: rgba(5, 5, 10, 0.5);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--glass-b);
   border-radius: 14px;
   padding: 18px 20px;
@@ -1844,7 +1853,8 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--d700);
+  background: rgba(5, 5, 10, 0.6);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-b);
   border-radius: 10px;
   padding: 11px 16px;
@@ -2325,7 +2335,8 @@ body {
 
 .adm-stat {
   flex: 1;
-  background: var(--d700);
+  background: rgba(5, 5, 15, 0.55);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-b);
   border-radius: 12px;
   padding: 14px 16px;
@@ -2422,7 +2433,8 @@ body {
 
 /* Table */
 .adm-table-wrap {
-  background: var(--d700);
+  background: rgba(5, 5, 12, 0.45);
+  backdrop-filter: blur(12px);
   border: 1px solid var(--glass-b);
   border-radius: 12px;
   overflow: hidden;
@@ -2938,11 +2950,11 @@ body {
 }
 
 .plan-card {
-  background: var(--d700);
+  background: rgba(5, 5, 15, 0.55);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--glass-b);
   border-radius: 14px;
   padding: 20px;
-  transition: all 0.25s;
   position: relative;
   overflow: hidden;
 }
