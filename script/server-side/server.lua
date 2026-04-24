@@ -229,8 +229,16 @@ lib.callback.register('mri_esc:vip:admin:list', function(source)
         end
     end
 
+    local allPlans = {}
+    if VipPlansConfigs then
+        for id, cfg in pairs(VipPlansConfigs) do
+            allPlans[#allPlans + 1] = { id = id, label = cfg.label, payment = cfg.payment, inventory = cfg.inventory, benefits = cfg.benefits }
+        end
+    end
+
     return {
         list = list,
+        allPlans = allPlans,
         stats = {
             total = onlineCount + offlineCount,
             online = onlineCount,
@@ -340,7 +348,7 @@ lib.callback.register('mri_esc:vip:admin:extend', function(source, data)
 
     local ok = false
     if ExtendVip then
-        local extOk = pcall(ExtendVip, data.citizenId, data.days, adminName)
+        local extOk = pcall(ExtendVip, data.citizenId, data.tier, data.days, adminName)
         ok = extOk
     elseif MySQL and MySQL.query then
         ok = true
@@ -351,8 +359,8 @@ lib.callback.register('mri_esc:vip:admin:extend', function(source, data)
                 and recs[1].expires_at or now
             local newExp = base + (tonumber(data.days) * 86400)
             MySQL.query(
-                "INSERT INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by, updated_at) VALUES (?, 'tier1', 0, ?, ?, ?) ON DUPLICATE KEY UPDATE expires_at=VALUES(expires_at), granted_by=VALUES(granted_by), updated_at=VALUES(updated_at)",
-                { data.citizenId, newExp, adminName, now }
+                "INSERT INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by, updated_at) VALUES (?, ?, 0, ?, ?, ?) ON DUPLICATE KEY UPDATE tier=VALUES(tier), expires_at=VALUES(expires_at), granted_by=VALUES(granted_by), updated_at=VALUES(updated_at)",
+                { data.citizenId, data.tier or 'tier1', newExp, adminName, now }
             )
         end)
     end

@@ -22,11 +22,12 @@ local function PushAdminList()
             return
         end
 
-        -- Envia a lista e as estatísticas consolidadas para a NUI
+        -- Envia a lista, estatísticas e planos consolidados para a NUI
         SendNUIMessage({
-            action = 'updateAdminList',
-            list   = result.list,
-            stats  = result.stats,
+            action   = 'updateAdminList',
+            list     = result.list,
+            stats    = result.stats,
+            allPlans = result.allPlans
         })
     end)
 end
@@ -85,6 +86,7 @@ RegisterNUICallback("vipAdminExtend", function(data, cb)
         local ok, result = pcall(function()
             return lib.callback.await('mri_esc:vip:admin:extend', false, {
                 citizenId = data.citizenId,
+                tier      = data.tier,
                 days      = data.days
             })
         end)

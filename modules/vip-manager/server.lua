@@ -229,7 +229,7 @@ RevokeVip = function(citizenId, reason)
     return true
 end
 
-ExtendVip = function(citizenId, extraDays, grantedBy)
+ExtendVip = function(citizenId, tier, extraDays, grantedBy)
     if not citizenId or not extraDays or not mysqlReady then return false end
     local ok, record = pcall(function()
         return MySQL.query.await("SELECT expires_at FROM mri_vip_records WHERE citizenid = ?", { citizenId })
@@ -239,11 +239,17 @@ ExtendVip = function(citizenId, extraDays, grantedBy)
     local base = (record[1].expires_at and record[1].expires_at > now) and record[1].expires_at or now
     local newExp = base + (tonumber(extraDays) * 86400)
     pcall(function()
-        MySQL.query("UPDATE mri_vip_records SET expires_at=?, granted_by=?, updated_at=? WHERE citizenid=?",
-            { newExp, grantedBy or 'system', now, citizenId })
+        MySQL.query("UPDATE mri_vip_records SET tier=?, expires_at=?, granted_by=?, updated_at=? WHERE citizenid=?",
+            { tier or 'tier1', newExp, grantedBy or 'system', now, citizenId })
     end)
+
+    -- Atualiza metadados se online para refletir mudança de plano imediata
     local src = GetOnlineSource(citizenId)
-    if src then Notify(src, "success", ("VIP renovado por mais %d dias!"):format(extraDays)) end
+    if src then 
+        local player = exports.qbx_core:GetPlayer(src)
+        if player then player.Functions.SetMetaData('vip', tier) end
+        Notify(src, "success", ("VIP renovado/alterado para plano %s!"):format(tier)) 
+    end
     return true
 end
 

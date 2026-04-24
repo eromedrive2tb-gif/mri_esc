@@ -401,6 +401,7 @@ const App = {
             // Lista VIP admin — enviada pelo client.lua via SendNUIMessage
             case 'updateAdminList':
                 store.adminList = Array.isArray(data.list) ? data.list : [];
+                if (data.allPlans) store.plans = data.allPlans;
                 break;
 
             // Resultado de ação admin (grant/revoke/extend) — para exibir toast
@@ -546,6 +547,13 @@ function adminVipPanel() {
             });
         },
 
+        getPlanLabel(tierId) {
+            if (!tierId || tierId === 'nenhum') return 'S/ VIP';
+            const query = tierId.toLowerCase();
+            const plan = (Alpine.store('ui').plans || []).find(p => p.id.toLowerCase() === query);
+            return plan ? plan.label : `ID: ${tierId} (Inexistente)`;
+        },
+
         formatMoney(n) { return Utils.formatMoney(n); },
 
         statusClass(row) {
@@ -592,10 +600,13 @@ function adminVipPanel() {
 
         // ── open grant modal ───────────────────────────────────
         openGrant(citizenId, name) {
+            const firstTier = (Alpine.store('ui').plans && Alpine.store('ui').plans[0]) 
+                ? Alpine.store('ui').plans[0].id 
+                : 'tier1';
             this.modal = {
                 open: true, mode: 'grant', citizenId,
                 playerName: name || citizenId,
-                tier: 'tier1', duration: '30',
+                tier: firstTier, duration: '30',
             };
         },
 
@@ -618,7 +629,7 @@ function adminVipPanel() {
             if (mode === 'grant') {
                 Nui.post('vipAdminGrant', { citizenId, tier: this.modal.tier, durationDays: days });
             } else {
-                Nui.post('vipAdminExtend', { citizenId, days });
+                Nui.post('vipAdminExtend', { citizenId, tier: this.modal.tier, days });
             }
 
             this.modal.open = false;
@@ -636,6 +647,7 @@ function adminVipPanel() {
 
         // ── execute revoke (fire-and-forget) ───────────────────
         executeRevoke() {
+            const citizenId = this.confirm.citizenId;
             this.confirm.open = false;
             Nui.post('vipAdminRevoke', { citizenId });
             // Toast e refresh chegam via eventos
