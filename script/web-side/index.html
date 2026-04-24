@@ -279,20 +279,16 @@
 					<div class="hero-fade"></div>
 				</div>
 
-				<!-- Stats Row -->
+				<!-- SECTION: BENEFÍCIOS ATIVOS -->
+				<div class="vip-section-header">
+					<i class="fa-solid fa-star"></i> BENEFÍCIOS ATIVOS DO PLANO
+				</div>
 				<div class="vip-stats">
 					<div class="vstat">
-						<div class="vstat-icon si-blue"><i class="fa-solid fa-gem"></i></div>
+						<div class="vstat-icon si-gold"><i class="fa-solid fa-gem"></i></div>
 						<div>
-							<div class="vstat-label">Plano</div>
+							<div class="vstat-label">Plano Atual</div>
 							<div class="vstat-val" x-text="store.vip.label"></div>
-						</div>
-					</div>
-					<div class="vstat">
-						<div class="vstat-icon si-green"><i class="fa-solid fa-coins"></i></div>
-						<div>
-							<div class="vstat-label">MRI Coins</div>
-							<div class="vstat-val" x-text="store.vip.coins"></div>
 						</div>
 					</div>
 					<div class="vstat">
@@ -303,20 +299,29 @@
 						</div>
 					</div>
 					<div class="vstat">
-						<div class="vstat-icon si-purple"><i class="fa-solid fa-weight-hanging"></i></div>
+						<div class="vstat-icon si-gold"><i class="fa-solid fa-weight-hanging"></i></div>
 						<div>
 							<div class="vstat-label">Inventário</div>
 							<div class="vstat-val" x-text="store.vip.inventory + ' kg'"></div>
 						</div>
 					</div>
+					<div class="vstat">
+						<div class="vstat-icon si-blue"><i class="fa-solid fa-coins"></i></div>
+						<div>
+							<div class="vstat-label">Carteira de Coins</div>
+							<div class="vstat-val" x-text="store.vip.coins"></div>
+						</div>
+					</div>
 				</div>
 
-				<!-- VIP Metrics Dashboard (only shown when VIP active) -->
+				<!-- SECTION: SUMÁRIO DA ASSINATURA -->
 				<div class="vip-metrics-dashboard" x-show="store.vip.tier !== 'nenhum'" x-transition.opacity>
+					<div class="vip-section-header">
+						<i class="fa-solid fa-clipboard-list"></i> SUMÁRIO DA ASSINATURA
+					</div>
 
-					<!-- Subscription row: Aquisição + Expiração -->
-					<div class="metrics-row metrics-row-2">
-						<div class="metric-card" :class="store.vip.isExpired ? 'mc-danger' : 'mc-ok'">
+					<div class="metrics-row">
+						<div class="metric-card mc-blue">
 							<div class="mc-icon"><i class="fa-solid fa-calendar-check"></i></div>
 							<div class="mc-body">
 								<div class="mc-label">Data de Aquisição</div>
@@ -325,45 +330,33 @@
 						</div>
 
 						<div class="metric-card"
-							:class="store.vip.isExpired ? 'mc-danger' : (store.vip.daysLeft !== null && store.vip.daysLeft <= 7 ? 'mc-warn' : (store.vip.daysLeft === null ? 'mc-gold' : 'mc-ok'))">
+							:class="store.vip.isExpired ? 'mc-danger' : (store.vip.daysLeft !== null && store.vip.daysLeft <= 7 ? 'mc-warn' : 'mc-gold')">
 							<div class="mc-icon">
 								<i
 									:class="store.vip.daysLeft === null ? 'fa-solid fa-infinity' : (store.vip.isExpired ? 'fa-solid fa-ban' : 'fa-solid fa-calendar-xmark')"></i>
 							</div>
 							<div class="mc-body">
-								<div class="mc-label">Expiração</div>
+								<div class="mc-label">Expiração do Plano</div>
 								<div class="mc-value"
 									x-text="store.vip.vipExpires ? store.formatDate(store.vip.vipExpires) : '∞ Permanente'">
 								</div>
-								<div class="mc-sub" x-show="store.vip.isExpired" style="color: var(--red);">⚠ VIP
-									EXPIRADO</div>
-								<div class="mc-sub"
-									x-show="!store.vip.isExpired && store.vip.daysLeft !== null && store.vip.daysLeft <= 7"
-									style="color: #FFAA00;" x-text="store.vip.daysLeft + ' dias restantes'">
-								</div>
+								<div class="mc-sub" x-show="store.vip.isExpired" style="color: var(--red);">⚠ VIP EXPIRADO</div>
 							</div>
 						</div>
-					</div>
 
-					<!-- Earnings row: Total + Pagamentos -->
-					<div class="metrics-row metrics-row-2">
-						<div class="metric-card mc-gold">
+						<div class="metric-card mc-blue">
 							<div class="mc-icon"><i class="fa-solid fa-sack-dollar"></i></div>
 							<div class="mc-body">
-								<div class="mc-label">Total Recebido em Salários</div>
+								<div class="mc-label">Acumulado em Salários</div>
 								<div class="mc-value" x-text="store.formatMoney(store.vip.totalEarned)"></div>
-								<div class="mc-sub" style="color: var(--t3);" x-show="store.vip.totalEarned === 0">
-									Acumula automaticamente a cada pagamento</div>
 							</div>
 						</div>
 
-						<div class="metric-card mc-neutral">
+						<div class="metric-card mc-blue">
 							<div class="mc-icon"><i class="fa-solid fa-receipt"></i></div>
 							<div class="mc-body">
-								<div class="mc-label">Salários Recebidos</div>
-								<div class="mc-value" x-text="store.vip.paycheckCount + ' pagamentos'"></div>
-								<div class="mc-sub" style="color: var(--t3);" x-show="store.vip.paycheckCount === 0">
-									Próximo em <span x-text="store.formatTimeLeft()"></span></div>
+								<div class="mc-label">Total de Pagamentos</div>
+								<div class="mc-value" x-text="store.vip.paycheckCount"></div>
 							</div>
 						</div>
 					</div>
@@ -373,15 +366,13 @@
 						x-show="store.vip.daysLeft !== null && store.vip.daysLeft <= 7 && !store.vip.isExpired"
 						x-transition>
 						<i class="fa-solid fa-triangle-exclamation"></i>
-						<span>Seu VIP expira em <b x-text="store.vip.daysLeft + ' dias'"></b>. Renove agora para não
-							perder seus benefícios!</span>
-						<div class="expiry-renew-btn">RENOVAR VIP</div>
+						<span>Seu VIP expira em <b x-text="store.vip.daysLeft + ' dias'"></b>. Renove agora para não perder seus benefícios!</span>
+						<div class="expiry-renew-btn">RENOVAR AGORA</div>
 					</div>
 
 					<div class="expiry-warning expiry-danger" x-show="store.vip.isExpired" x-transition>
 						<i class="fa-solid fa-ban"></i>
-						<span>Seu VIP está <b>expirado</b>. Renove para reativar todos os benefícios
-							imediatamente.</span>
+						<span>Seu VIP está <b>expirado</b>. Renove para reativar todos os benefícios imediatamente.</span>
 						<div class="expiry-renew-btn">REATIVAR VIP</div>
 					</div>
 				</div>
@@ -395,7 +386,7 @@
 
 						<!-- Benefits (if VIP) -->
 						<div class="vip-block" x-show="store.vip.tier !== 'nenhum'">
-							<div class="vblock-title green-title"><i class="fa-solid fa-star"></i> SEUS BENEFÍCIOS</div>
+							<div class="vblock-title gold-title"><i class="fa-solid fa-star"></i> SEUS BENEFÍCIOS</div>
 							<div class="benefits-grid">
 								<template x-for="b in store.vip.benefits" :key="b">
 									<div class="benefit-pill">
