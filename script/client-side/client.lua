@@ -106,8 +106,8 @@ RegisterCommand("open_menu", function()
             end
         end
 
-        -- isAdmin vem direto do servidor junto com os dados VIP
         local isAdmin = vipData and vipData.isAdmin == true
+        local coords = GetEntityCoords(PlayerPedId())
 
         SendNUIMessage({
             action    = "showMenu",
@@ -119,6 +119,8 @@ RegisterCommand("open_menu", function()
             job       = jobText,
             vip       = vipData,
             isAdmin   = isAdmin,
+            playerX   = coords.x,
+            playerY   = coords.y,
             tabs      = BuildTabsConfig()
         })
 
@@ -156,7 +158,7 @@ RegisterNUICallback("close", function(_, cb)
     if cb then cb({ success = true }) end
 end)
 
-RegisterNUICallback("mapa", function(_, cb)
+RegisterNUICallback("openNativeMap", function(_, cb)
     closeMenu(true)
     Wait(100)
     ActivateFrontendMenu(GetHashKey("FE_MENU_VERSION_MP_PAUSE"), 0, -1)

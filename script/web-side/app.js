@@ -1,5 +1,16 @@
 "use strict";
 
+const mapElement = document.getElementById('meu-mapa');
+let leafletEngine = null;
+
+if (mapElement) {
+    mapElement.addEventListener('map-ready', (e) => {
+        leafletEngine = e.detail.map; // L.Map instance
+        const controls = mapElement.shadowRoot.querySelector('.leaflet-control-container');
+        if (controls) controls.style.display = 'none'; // Esconde UI
+    });
+}
+
 /**
  * Enterprise-level MRI_ESC Application Logic
  * Optimized for FiveM NUI Environment
@@ -345,7 +356,7 @@ const App = {
     setupEventListeners() {
         window.addEventListener('message', this.onMessage.bind(this));
         document.addEventListener('keydown', this.onKeyDown.bind(this));
-        
+
         document.addEventListener('alpine:initialized', () => {
             const preview = document.getElementById('canvas-mira-preview');
             const permanent = document.getElementById('canvas-mira-permanente');
@@ -378,6 +389,15 @@ const App = {
                 store.isAdmin   = (data && data.isAdmin) || false;
                 store.activeTab = 'inicio';
                 store.isOpen    = true;
+
+                if (data.playerX !== undefined && data.playerY !== undefined) {
+                    setTimeout(() => {
+                        if (leafletEngine) {
+                            leafletEngine.setView([data.playerY, data.playerX], 4);
+                            leafletEngine.invalidateSize(); 
+                        }
+                    }, 150);
+                }
                 break;
 
             case 'updateAdmin':
