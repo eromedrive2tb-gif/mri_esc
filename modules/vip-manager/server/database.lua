@@ -26,13 +26,14 @@ CreateThread(function()
 
         MySQL.query([[
             CREATE TABLE IF NOT EXISTS `mri_vip_plans` (
-                `id`         VARCHAR(50)  NOT NULL,
-                `label`      VARCHAR(100) NOT NULL,
-                `payment`    INT          NOT NULL DEFAULT 0,
-                `inventory`  INT          NOT NULL DEFAULT 0,
-                `benefits`   LONGTEXT     DEFAULT '[]',
-                `rewards`    LONGTEXT     DEFAULT '[]',
-                `updated_at` INT(11)      DEFAULT NULL,
+                `id`           VARCHAR(50)  NOT NULL,
+                `label`        VARCHAR(100) NOT NULL,
+                `payment`      INT          NOT NULL DEFAULT 0,
+                `inventory`    INT          NOT NULL DEFAULT 0,
+                `benefits`     LONGTEXT     DEFAULT '[]',
+                `rewards`      LONGTEXT     DEFAULT '[]',
+                `vehicle_data` LONGTEXT     DEFAULT NULL,
+                `updated_at`   INT(11)      DEFAULT NULL,
                 PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ]])
@@ -41,6 +42,8 @@ CreateThread(function()
         CreateThread(function()
             Wait(2000)
             MySQL.query("ALTER TABLE `mri_vip_plans` ADD COLUMN IF NOT EXISTS `rewards` LONGTEXT DEFAULT '[]'")
+            MySQL.query("ALTER TABLE `mri_vip_plans` ADD COLUMN IF NOT EXISTS `vehicle_data` LONGTEXT DEFAULT NULL")
+            MySQL.query("ALTER TABLE `mri_vip_records` ADD COLUMN IF NOT EXISTS `vehicle_plate` VARCHAR(20) DEFAULT NULL")
         end)
         
         Wait(500)
@@ -62,7 +65,8 @@ function LoadVipPlans()
                 payment   = p.payment,
                 inventory = p.inventory,
                 benefits  = json.decode(p.benefits or "[]"),
-                rewards   = json.decode(p.rewards  or "[]")
+                rewards   = json.decode(p.rewards  or "[]"),
+                vehicle   = json.decode(p.vehicle_data or "null")
             }
         end
         VipPlansConfigs = newPlans

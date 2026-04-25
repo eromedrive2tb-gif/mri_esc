@@ -3391,3 +3391,35 @@ body {
   padding: 20px 0;
   font-style: italic;
 }
+
+/* --- VIP Vehicle Editor --- */
+.vehicle-editor .search-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--glass);
+    border-radius: 8px;
+    color: var(--blue);
+}
+
+.selected-vehicle {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.selected-vehicle .reward-item-card {
+    border-color: var(--blue-glow);
+    background: rgba(0, 148, 225, 0.05);
+}
+
+.selected-vehicle .reward-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--blue-glow);
+    color: var(--blue-l);
+    border-radius: 8px;
+    font-size: 18px;
+}

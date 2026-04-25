@@ -21,6 +21,13 @@ local function Notify(src, ntype, msg)
     end)
 end
 
+local function GenerateRandomPlate()
+    local plate = string.upper(lib.string.random('NNNAANNN')) -- Ex: 123AB456
+    local exists = MySQL.scalar.await("SELECT 1 FROM player_vehicles WHERE plate = ?", { plate })
+    if exists then return GenerateRandomPlate() end
+    return plate
+end
+
 RevokeVip = function(citizenId, reason)
     if not citizenId then return false end
     local cid = citizenId:upper()
@@ -48,6 +55,11 @@ RevokeVip = function(citizenId, reason)
     end
     
     if GetResourceState('oxmysql') == 'started' then
+        local record = MySQL.single.await("SELECT vehicle_plate FROM mri_vip_records WHERE citizenid = ?", { cid })
+        if record and record.vehicle_plate then
+            print(("^1[mri_esc]^7 Removendo veículo VIP temporário (Placa: %s) do jogador %s"):format(record.vehicle_plate, cid))
+            MySQL.query("DELETE FROM player_vehicles WHERE plate = ?", { record.vehicle_plate })
+        end
         MySQL.query.await("DELETE FROM mri_vip_records WHERE citizenid = ?", { cid })
     end
     
@@ -90,15 +102,60 @@ GrantVip = function(citizenId, tier, durationDays, grantedBy)
         end
     end
 
+    local vehiclePlate = nil
+    local plan = GetVipConfigs()[tier]
+    
+    if plan and plan.vehicle and plan.vehicle.model then
+        local plate = GenerateRandomPlate()
+        local success = false
+        
+        if onlineSrc then
+            local p = exports.qbx_core:GetPlayer(onlineSrc)
+            if p then
+                local props = json.encode({ plate = plate })
+                local insert = MySQL.insert.await([[
+                    INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, state, garage)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ]], {
+                    p.PlayerData.license, cid, plan.vehicle.model, joaat(plan.vehicle.model),
+                    props, plate, 1, "pillbox"
+                })
+                success = (insert and insert > 0)
+            end
+        else
+            local off = exports.qbx_core:GetOfflinePlayer(cid)
+            if off then
+                local props = json.encode({ plate = plate })
+                local insert = MySQL.insert.await([[
+                    INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, state, garage)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ]], {
+                    off.PlayerData.license, cid, plan.vehicle.model, joaat(plan.vehicle.model),
+                    props, plate, 1, "pillbox"
+                })
+                success = (insert and insert > 0)
+            end
+        end
+        
+        if success then
+            if onlineSrc then
+                Notify(onlineSrc, "success", ("Um veículo VIP foi adicionado à sua garagem: %s!"):format(plan.vehicle.name or plan.vehicle.model))
+            end
+            if plan.vehicle.type == 'temp' then
+                vehiclePlate = plate
+            end
+        end
+    end
+
     if GetResourceState('oxmysql') == 'started' then
         MySQL.query.await([[
-            INSERT INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by, vehicle_plate, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 tier=VALUES(tier), granted_at=VALUES(granted_at),
                 expires_at=VALUES(expires_at), granted_by=VALUES(granted_by),
-                updated_at=VALUES(updated_at)
-        ]], { cid, tier, now, exp, grantedBy or 'system', now })
+                vehicle_plate=VALUES(vehicle_plate), updated_at=VALUES(updated_at)
+        ]], { cid, tier, now, exp, grantedBy or 'system', vehiclePlate, now })
     end
 
     return true
@@ -140,7 +197,6 @@ end
 -- ── THREAD — PAYCHECK TRACKER ───────────────────────────────
 CreateThread(function()
     Wait(5000)
-    print("[VIP Paycheck] Thread started")
     while true do
         local waitMin = tonumber(paycheckInterval) or 30
         local interval = waitMin * 60000
@@ -167,7 +223,6 @@ CreateThread(function()
                     if salary > 0 then
                         player.Functions.AddMoney('bank', salary, "VIP Paycheck")
                         Notify(src, "success", ("Salário VIP de R$ %s depositado!"):format(salary))
-                        print(("[VIP Paycheck] Paid $%d to %s (tier: %s)"):format(salary, player.PlayerData.citizenid, vip))
                     end
 
                     -- 2. Grant Item Rewards
@@ -175,14 +230,9 @@ CreateThread(function()
                         for _, reward in ipairs(plan.rewards) do
                             local qty = tonumber(reward.amount) or 0
                             if reward.item and qty > 0 then
-                                local itemOk, itemErr = pcall(function()
+                                pcall(function()
                                     exports.ox_inventory:AddItem(src, reward.item, qty)
                                 end)
-                                if itemOk then
-                                    print(("[VIP Paycheck] Gave %dx %s to %s"):format(qty, reward.item, player.PlayerData.citizenid))
-                                else
-                                    print(("[VIP Paycheck] ERROR giving item %s: %s"):format(reward.item, tostring(itemErr)))
-                                end
                             end
                         end
                     end
@@ -202,7 +252,7 @@ CreateThread(function()
         end)
 
         if not ok then
-            print("[VIP Paycheck] ERROR in paycheck loop: " .. tostring(err))
+            print("^1[mri_esc] ERROR in paycheck loop: " .. tostring(err) .. "^7")
         end
     end
 end)

@@ -118,6 +118,11 @@ RegisterNUICallback("vipAdminGetItems", function(_, cb)
     cb(items or {})
 end)
 
+RegisterNUICallback("vipAdminGetVehicles", function(_, cb)
+    local vehicles = lib.callback.await('mri_esc:admin:getVehicles', false)
+    cb(vehicles or {})
+end)
+
 AddEventHandler('mri_esc:client:adminReady', function()
     PushAdminList()
 end)

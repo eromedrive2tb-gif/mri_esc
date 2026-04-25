@@ -1015,6 +1015,52 @@
 									</div>
 								</div>
 
+								<!-- NOVO: Veículo VIP -->
+								<label class="adm-field-lbl" style="margin-top: 15px;">Veículo VIP (Recompensa)</label>
+								<div class="rewards-editor vehicle-editor">
+									<div class="item-search-wrapper">
+										<div class="adm-field">
+											<input type="text" class="adm-field-inp" x-model="vehSearch"
+												placeholder="Buscar veículo (ex: zentorno, panto)...">
+										</div>
+										<div class="item-search-results" x-show="vehSearch.length > 0">
+											<template x-for="v in filteredVehicles()" :key="v.model">
+												<div class="search-item-row" @click="setVehicle(v)">
+													<div class="search-item-icon"><i class="fa-solid fa-car"></i></div>
+													<div class="search-item-info">
+														<span class="si-label" x-text="v.brand ? (v.brand + ' ' + v.name) : v.name"></span>
+														<span class="si-name" x-text="v.model"></span>
+													</div>
+												</div>
+											</template>
+										</div>
+									</div>
+
+									<div class="selected-vehicle" x-show="planModal.vehicle">
+										<div class="reward-item-card">
+											<div class="reward-icon"><i class="fa-solid fa-car"></i></div>
+											<div class="reward-info">
+												<div class="ri-name" x-text="planModal.vehicle?.name || planModal.vehicle?.model"></div>
+												<div class="ri-qty">
+													<select x-model="planModal.vehicle.type" class="ri-qty-inp" style="width: auto; padding-right: 20px;">
+														<option value="perm">Permanente</option>
+														<option value="temp">Temporário</option>
+													</select>
+												</div>
+											</div>
+											<div class="btn-del-reward" @click="planModal.vehicle = null">
+												<i class="fa-solid fa-trash-can"></i>
+											</div>
+										</div>
+										<span class="field-sub" x-show="planModal.vehicle?.type === 'temp'" style="color: var(--gold);">
+											O veículo será removido quando o VIP expirar ou for revogado.
+										</span>
+									</div>
+									<div class="reward-empty" x-show="!planModal.vehicle">
+										Nenhum veículo configurado para este plano
+									</div>
+								</div>
+
 								<label class="adm-field-lbl" style="margin-top: 15px;">Itens no Salário</label>
 								<div class="rewards-editor">
 									<div class="item-search-wrapper">

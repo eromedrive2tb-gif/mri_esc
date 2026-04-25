@@ -64,7 +64,7 @@ function adminVipPanel() {
         get plans() { return Alpine.store('ui').plans || []; },
         searchPlans: '',
         modal: { open: false, mode: 'grant', citizenId: '', playerName: '', tier: 'tier1', duration: '30' },
-        planModal: { open: false, isNew: true, id: '', label: '', payment: 0, inventory: 0, benefits: [], rewards: [] },
+        planModal: { open: false, isNew: true, id: '', label: '', payment: 0, inventory: 0, benefits: [], rewards: [], vehicle: null },
         confirm: { open: false, citizenId: '', playerName: '' },
         get list() { return Alpine.store('ui').adminList || []; },
 
@@ -72,9 +72,14 @@ function adminVipPanel() {
         itemSearch: '',
         itemLoading: false,
 
+        vehiclesList: [],
+        vehSearch: '',
+        vehLoading: false,
+
         init() {
             this.loadPlans();
             this.loadItems();
+            this.loadVehicles();
             this._onAdminResult = (e) => {
                 const { operation, result } = e.detail || {};
                 if (result?.success) {
@@ -193,7 +198,8 @@ function adminVipPanel() {
                     id: fresh.id, label: fresh.label,
                     payment: fresh.payment, inventory: fresh.inventory,
                     benefits: Array.isArray(fresh.benefits) ? [...fresh.benefits] : [],
-                    rewards: rewards
+                    rewards: rewards,
+                    vehicle: fresh.vehicle ? {...fresh.vehicle} : null
                 };
             } else {
                 this.planModal = {
@@ -201,7 +207,8 @@ function adminVipPanel() {
                     id: '', label: '',
                     payment: 5000, inventory: 100,
                     benefits: [''],
-                    rewards: []
+                    rewards: [],
+                    vehicle: null
                 };
             }
         },
@@ -217,7 +224,8 @@ function adminVipPanel() {
                 payment: parseInt(this.planModal.payment) || 0,
                 inventory: parseInt(this.planModal.inventory) || 0,
                 benefits: this.planModal.benefits.map(b => b.trim()).filter(b => b !== ''),
-                rewards: this.planModal.rewards
+                rewards: this.planModal.rewards,
+                vehicle: this.planModal.vehicle
             };
 
             const res = await Nui.post('vipAdminSavePlan', data);
@@ -265,6 +273,40 @@ function adminVipPanel() {
 
         getItemImage(itemName) {
             return `nui://ox_inventory/web/images/${itemName}.png`;
+        },
+
+        // ── VEÍCULOS ───────────────────────────────────────────
+        async loadVehicles() {
+            this.vehLoading = true;
+            try {
+                const res = await Nui.post('vipAdminGetVehicles');
+                if (Array.isArray(res)) {
+                    this.vehiclesList = res;
+                } else {
+                    console.error("Failed to load vehicles list", res);
+                }
+            } catch (e) { console.error(e); }
+            this.vehLoading = false;
+        },
+
+        filteredVehicles() {
+            const q = this.vehSearch.toLowerCase().trim();
+            if (!q) return [];
+            return this.vehiclesList.filter(v => {
+                const name = (v.name || "").toLowerCase();
+                const model = (v.model || "").toLowerCase();
+                const brand = (v.brand || "").toLowerCase();
+                return name.includes(q) || model.includes(q) || brand.includes(q);
+            }).slice(0, 10);
+        },
+
+        setVehicle(veh) {
+            this.planModal.vehicle = {
+                model: veh.model,
+                name: (veh.brand ? veh.brand + " " : "") + veh.name,
+                type: 'perm'
+            };
+            this.vehSearch = '';
         },
 
         async deletePlan(id) {

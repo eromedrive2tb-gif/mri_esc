@@ -65,7 +65,8 @@ lib.callback.register('mri_esc:server:getVipData', function(source)
                         payment = cfg.payment,
                         inventory = cfg.inventory,
                         benefits = cfg.benefits,
-                        rewards = cfg.rewards or {}
+                        rewards = cfg.rewards or {},
+                        vehicle = cfg.vehicle or nil
                     }
                 end
             end
@@ -87,7 +88,8 @@ lib.callback.register('mri_esc:admin:getPlans', function(source)
                 payment   = data.payment,
                 inventory = data.inventory,
                 benefits  = data.benefits,
-                rewards   = data.rewards or {}
+                rewards   = data.rewards or {},
+                vehicle   = data.vehicle or nil
             })
         end
     end
@@ -99,16 +101,17 @@ lib.callback.register('mri_esc:admin:savePlan', function(source, data)
     
     local ok, err = pcall(function()
         MySQL.query.await([[
-            INSERT INTO mri_vip_plans (id, label, payment, inventory, benefits, rewards, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO mri_vip_plans (id, label, payment, inventory, benefits, rewards, vehicle_data, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 label=VALUES(label), payment=VALUES(payment),
                 inventory=VALUES(inventory), benefits=VALUES(benefits),
-                rewards=VALUES(rewards), updated_at=VALUES(updated_at)
+                rewards=VALUES(rewards), vehicle_data=VALUES(vehicle_data), updated_at=VALUES(updated_at)
         ]], { 
             data.id, data.label, data.payment, data.inventory, 
             json.encode(data.benefits or {}), 
             json.encode(data.rewards or {}),
+            json.encode(data.vehicle or nil),
             os.time() 
         })
     end)
@@ -140,5 +143,33 @@ lib.callback.register('mri_esc:admin:getItems', function(source)
         })
     end
     table.sort(list, function(a, b) return a.label < b.label end)
+    return list
+end)
+
+lib.callback.register('mri_esc:admin:getVehicles', function(source)
+    if not IsAdminPlayer(source) then return {} end
+    
+    local VEHICLES = {}
+    if GetResourceState('qbx_core') == 'started' then
+        VEHICLES = exports.qbx_core:GetVehiclesByName()
+    elseif GetResourceState('qb-core') == 'started' then
+        local QBCore = exports['qb-core']:GetCoreObject()
+        VEHICLES = QBCore.Shared.Vehicles
+    end
+
+    local list = {}
+    if VEHICLES then
+        for model, data in pairs(VEHICLES) do
+            list[#list + 1] = {
+                model = data.model or model,
+                name = data.name or model,
+                brand = data.brand or "",
+                category = data.category or "",
+                hash = data.hash or GetHashKey(model),
+                price = data.price or 0
+            }
+        end
+    end
+    table.sort(list, function(a, b) return (a.name or "") < (b.name or "") end)
     return list
 end)
