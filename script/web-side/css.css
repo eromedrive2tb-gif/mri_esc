@@ -228,10 +228,13 @@ body {
 }
 
 @keyframes pulse-crown {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
+
   50% {
     transform: scale(1.1);
     opacity: 0.8;
@@ -847,7 +850,8 @@ body {
   border-radius: 50%;
   background: var(--gold);
   opacity: 0;
-  display: none; /* DESATIVADO PARA PERFORMANCE EXTREMA */
+  display: none;
+  /* DESATIVADO PARA PERFORMANCE EXTREMA */
 }
 
 .pt1 {
@@ -951,12 +955,15 @@ body {
     transform: translateY(50px) scale(0);
     opacity: 0;
   }
+
   15% {
     opacity: 0.5;
   }
+
   85% {
     opacity: 0.2;
   }
+
   100% {
     transform: translateY(-20px) scale(1.2);
     opacity: 0;
@@ -1715,18 +1722,38 @@ body {
   transition: all 0.25s;
 }
 
-.mc-ok { border-color: rgba(0, 230, 118, 0.3); }
-.mc-warn { border-color: rgba(255, 170, 0, 0.3); }
-.mc-danger { border-color: rgba(255, 71, 87, 0.6); /* animation: danger-pulse 2s ease infinite; -- REMOVIDO */ }
-.mc-gold { border-color: rgba(255, 215, 0, 0.3); }
-.mc-neutral { border-color: rgba(0, 148, 225, 0.3); }
-.mc-blue { border-color: rgba(0, 148, 225, 0.3); }
+.mc-ok {
+  border-color: rgba(0, 230, 118, 0.3);
+}
+
+.mc-warn {
+  border-color: rgba(255, 170, 0, 0.3);
+}
+
+.mc-danger {
+  border-color: rgba(255, 71, 87, 0.6);
+  /* animation: danger-pulse 2s ease infinite; -- REMOVIDO */
+}
+
+.mc-gold {
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
+.mc-neutral {
+  border-color: rgba(0, 148, 225, 0.3);
+}
+
+.mc-blue {
+  border-color: rgba(0, 148, 225, 0.3);
+}
 
 .metric-card:hover {
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.05);
 }
+
 @keyframes danger-pulse {
+
   0%,
   100% {
     border-color: rgba(255, 71, 87, 0.25);

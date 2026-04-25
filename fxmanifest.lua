@@ -13,13 +13,17 @@ shared_scripts {
 }
 
 client_scripts {
-    'modules/vip-manager/client.lua',
+    'modules/vip-manager/client/*.lua',
+    'script/client-side/modules/*.lua',
     'script/client-side/*.lua'
 }
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
-    'modules/vip-manager/server.lua',
+    'modules/vip-manager/server/*.lua',
+    'script/server-side/utils/*.lua',
+    'script/server-side/core/*.lua',
+    'script/server-side/controllers/*.lua',
     'script/server-side/*.lua'
 }
 
