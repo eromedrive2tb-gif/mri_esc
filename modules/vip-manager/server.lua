@@ -229,8 +229,18 @@ end
 
 -- ── THREAD — PAYCHECK TRACKER ───────────────────────────────
 CreateThread(function()
-    Wait(10000) -- Espera inicial após ensure
+    Wait(5000) -- Apenas um pequeno delay para garantir que o MySQL e Planos carregaram
     while true do
+        -- 1. SINCRONIZAÇÃO: Espera o ciclo atual terminar antes de pagar
+        local waitMin = tonumber(paycheckInterval) or 30
+        local interval = waitMin * 60000
+        local uptime = GetGameTimer()
+        local timeUntilNext = interval - (uptime % interval)
+        
+        if timeUntilNext < 500 then timeUntilNext = interval end
+        Wait(timeUntilNext)
+
+        -- 2. PAGAMENTO (Ocorre após o Wait)
         if mysqlReady then
             local cfg = GetVipConfigs()
             local players = exports.qbx_core:GetQBPlayers()
@@ -241,11 +251,11 @@ CreateThread(function()
                     if vip and vip ~= 'nenhum' then
                         local salary = cfg[vip] and cfg[vip].payment or 0
                         if salary > 0 then
-                            -- 1. Entrega dinheiro real
+                            -- Entrega dinheiro real
                             player.Functions.AddMoney('bank', salary, "VIP Paycheck")
                             Notify(player.PlayerData.source, "success", ("Salário VIP de R$ %s depositado!"):format(salary))
 
-                            -- 2. Atualiza métrica SQL
+                            -- Atualiza métrica SQL
                             MySQL.query([[
                                 UPDATE mri_vip_records
                                 SET total_earned = total_earned + ?,
@@ -258,10 +268,6 @@ CreateThread(function()
                 end
             end
         end
-        
-        -- Calcula espera com base no paycheckInterval global
-        local waitMin = tonumber(paycheckInterval) or 30
-        Wait(waitMin * 60000)
     end
 end)
 
