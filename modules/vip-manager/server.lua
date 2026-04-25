@@ -1,51 +1,26 @@
 -- =============================================================
 --  mri_esc — VIP Manager Module (Server)
---  Responsável: criação de tabela, expiry watcher,
---  paycheck tracker e evento de login.
---
---  TODOS os callbacks admin estão em server.lua (script principal).
+--  Handles VIP Granting, Revocation, and Expiry
 -- =============================================================
 
-local paycheckInterval = 30
-local intervalMs       = paycheckInterval * 60 * 1000
-local mysqlReady       = false
+VipPlansConfigs = {} -- Global para ser lido pelo server.lua
+local mysqlReady = false
 
--- Cache global dos planos para acesso rápido
-VipPlansConfigs = {}
-
--- ─────────────────────────────────────────────────────────────
---  AGUARDA MYSQL
--- ─────────────────────────────────────────────────────────────
-
+-- ── INICIALIZAÇÃO ───────────────────────────────────────────
 CreateThread(function()
-    -- Aguarda o objeto MySQL (injetado via @oxmysql/lib/MySQL.lua no fxmanifest)
-    while not MySQL do Wait(500) end
+    Wait(1000)
+    mysqlReady = (GetResourceState('oxmysql') == 'started')
     
-    -- Aguarda o banco de dados estar pronto para consultas
-    local attempts = 0
-    while not MySQL.query and attempts < 20 do
-        Wait(500)
-        attempts = attempts + 1
-    end
-
-    if MySQL and MySQL.query then
-        mysqlReady = true
-    else
-        print("[VIP Manager] ^1ERRO: MySQL não carregou corretamente após a injeção.^7")
-        return
-    end
-
-    -- Cria tabelas
-    pcall(function()
+    if mysqlReady then
         MySQL.query([[
             CREATE TABLE IF NOT EXISTS `mri_vip_records` (
                 `citizenid`      VARCHAR(50)  NOT NULL,
-                `tier`           VARCHAR(50)  NOT NULL DEFAULT 'tier1',
-                `granted_at`     INT(11)      NOT NULL DEFAULT 0,
+                `tier`           VARCHAR(50)  NOT NULL,
+                `granted_at`     INT(11)      NOT NULL,
                 `expires_at`     INT(11)      DEFAULT NULL,
-                `total_earned`   BIGINT       DEFAULT 0,
-                `paycheck_count` INT          DEFAULT 0,
                 `granted_by`     VARCHAR(100) DEFAULT 'system',
+                `total_earned`   INT(11)      DEFAULT 0,
+                `paycheck_count` INT(11)      DEFAULT 0,
                 `updated_at`     INT(11)      DEFAULT NULL,
                 PRIMARY KEY (`citizenid`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -62,22 +37,24 @@ CreateThread(function()
                 PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ]])
-    end)
+    end
 
     -- Carrega planos e verifica expirados
     Wait(500)
     LoadVipPlans()
     
-    local ok, expired = pcall(function()
-        return MySQL.query.await([[
-            SELECT citizenid FROM mri_vip_records
-            WHERE expires_at IS NOT NULL AND expires_at <= ?
-        ]], { os.time() })
-    end)
-    if ok and expired and #expired > 0 then
-        print(("[VIP Manager] %d VIP(s) expirado(s) ao iniciar."):format(#expired))
-        for _, r in ipairs(expired) do
-            pcall(RevokeVip, r.citizenid, 'expired')
+    if mysqlReady then
+        local ok, expired = pcall(function()
+            return MySQL.query.await([[
+                SELECT citizenid FROM mri_vip_records
+                WHERE expires_at IS NOT NULL AND expires_at <= ?
+            ]], { os.time() })
+        end)
+        if ok and expired and #expired > 0 then
+            print(("[VIP Manager] %d VIP(s) expirado(s) ao iniciar."):format(#expired))
+            for _, r in ipairs(expired) do
+                pcall(RevokeVip, r.citizenid, 'expired')
+            end
         end
     end
 end)
@@ -102,20 +79,13 @@ function LoadVipPlans()
         VipPlansConfigs = newPlans
         print(("[VIP Manager] %d planos VIP carregados do DB."):format(#results))
     else
-        -- Caso a tabela esteja vazia, popula com os defaults mas não salva (admin deve salvar via UI)
-        VipPlansConfigs = {
-            tier1 = { label = "Tier 1", payment = 5000, inventory = 200, benefits = {"Salário de R$ 5.000", "+100kg no inventário"} }
-        }
+        VipPlansConfigs = {}
     end
 end
 
--- ─────────────────────────────────────────────────────────────
---  HELPERS
--- ─────────────────────────────────────────────────────────────
-
-local function GetVipConfigs()
+-- ── HELPERS ─────────────────────────────────────────────────
+function GetVipConfigs()
     if VipPlansConfigs and next(VipPlansConfigs) then return VipPlansConfigs end
-    -- Fallback final
     return {
         nenhum = { label = "Sem VIP", payment = 0,    inventory = 100 },
         tier1  = { label = "Tier 1",  payment = 5000, inventory = 200 },
@@ -123,31 +93,61 @@ local function GetVipConfigs()
 end
 
 local function GetOnlineSource(citizenId)
+    if not citizenId then return nil end
+    local cid = citizenId:upper()
     local ok, player = pcall(function()
-        return exports.qbx_core:GetPlayerByCitizenId(citizenId)
+        return exports.qbx_core:GetPlayerByCitizenId(cid)
     end)
-    if ok and player and player.PlayerData then
+    if player and player.PlayerData then
         return player.PlayerData.source
     end
     return nil
 end
 
-local function Notify(src, ntype, msg)
+function Notify(src, ntype, msg)
     if not src or src <= 0 then return end
     pcall(function()
         lib.notify(src, { title = "VIP", type = ntype, description = msg })
     end)
 end
 
--- ─────────────────────────────────────────────────────────────
---  GLOBAIS: GrantVip / RevokeVip / ExtendVip
---  (acessíveis por server.lua via GrantVip / RevokeVip globais)
--- ─────────────────────────────────────────────────────────────
-
-RevokeVip = function(citizenId, reason) end  -- forward declaration
+-- ── GLOBAIS: GrantVip / RevokeVip / ExtendVip ───────────────
+RevokeVip = function(citizenId, reason)
+    if not citizenId then return false end
+    local cid = citizenId:upper()
+    local onlineSrc = GetOnlineSource(cid)
+    
+    if onlineSrc then
+        local player = exports.qbx_core:GetPlayer(onlineSrc)
+        if player then
+            local oldVip = player.PlayerData.metadata['vip']
+            if oldVip and oldVip ~= 'nenhum' then
+                pcall(function() lib.removePrincipal(onlineSrc, oldVip) end)
+            end
+            player.Functions.SetMetaData('vip', nil)
+            exports.ox_inventory:SetMaxWeight(onlineSrc, 100 * 1000)
+            Notify(onlineSrc, (reason == 'expired' and "warning" or "info"), 
+                (reason == 'expired' and "Seu VIP expirou!" or "Seu VIP foi removido."))
+        end
+    else
+        local off = exports.qbx_core:GetOfflinePlayer(cid)
+        if off then
+            off.PlayerData.metadata['vip'] = nil
+            exports.qbx_core:SaveOffline(off.PlayerData)
+        end
+    end
+    
+    if mysqlReady then
+        MySQL.query("DELETE FROM mri_vip_records WHERE citizenid = ?", { cid })
+    end
+    
+    print(("[VIP Manager] Revogado de '%s' (%s)"):format(cid, reason or "manual"))
+    return true
+end
 
 GrantVip = function(citizenId, tier, durationDays, grantedBy)
     if not citizenId or not tier then return false, "Parâmetros inválidos" end
+    local cid = citizenId:upper()
     local now = os.time()
     local exp = nil
     durationDays = tonumber(durationDays)
@@ -155,215 +155,138 @@ GrantVip = function(citizenId, tier, durationDays, grantedBy)
         exp = now + (durationDays * 86400)
     end
 
-    local onlineSrc = GetOnlineSource(citizenId)
+    local onlineSrc = GetOnlineSource(cid)
     if onlineSrc then
-        pcall(function()
-            local player = exports.qbx_core:GetPlayer(onlineSrc)
-            if player then
-                player.Functions.SetMetaData('vip', tier)
-                local cfg = GetVipConfigs()
-                if cfg[tier] and cfg[tier].inventory then
-                    exports.ox_inventory:SetMaxWeight(onlineSrc, cfg[tier].inventory * 1000)
-                end
-                Notify(onlineSrc, "success", ("Você recebeu o VIP %s!"):format(tier))
+        local player = exports.qbx_core:GetPlayer(onlineSrc)
+        if player then
+            local oldVip = player.PlayerData.metadata['vip']
+            if oldVip and oldVip ~= 'nenhum' then
+                pcall(function() lib.removePrincipal(onlineSrc, oldVip) end)
             end
-        end)
+            lib.addPrincipal(onlineSrc, tier)
+            player.Functions.SetMetaData('vip', tier)
+            
+            local cfg = GetVipConfigs()
+            if cfg[tier] and cfg[tier].inventory then
+                exports.ox_inventory:SetMaxWeight(onlineSrc, cfg[tier].inventory * 1000)
+            end
+            Notify(onlineSrc, "success", ("Você recebeu o VIP %s!"):format(tier))
+        end
     else
-        pcall(function()
-            local off = exports.qbx_core:GetOfflinePlayer(citizenId)
-            if off then
-                off.PlayerData.metadata['vip'] = tier
-                exports.qbx_core:SaveOffline(off.PlayerData)
-            end
-        end)
+        local off = exports.qbx_core:GetOfflinePlayer(cid)
+        if off then
+            off.PlayerData.metadata['vip'] = tier
+            exports.qbx_core:SaveOffline(off.PlayerData)
+        end
     end
 
     if mysqlReady then
-        pcall(function()
-            MySQL.query([[
-                INSERT INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    tier=VALUES(tier), granted_at=VALUES(granted_at),
-                    expires_at=VALUES(expires_at), granted_by=VALUES(granted_by),
-                    updated_at=VALUES(updated_at)
-            ]], { citizenId, tier, now, exp, grantedBy or 'system', now })
-        end)
+        MySQL.query([[
+            INSERT INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                tier=VALUES(tier), granted_at=VALUES(granted_at),
+                expires_at=VALUES(expires_at), granted_by=VALUES(granted_by),
+                updated_at=VALUES(updated_at)
+        ]], { cid, tier, now, exp, grantedBy or 'system', now })
     end
 
-    print(("[VIP Manager] '%s' concedido a '%s'"):format(tier, citizenId))
-    return true
-end
-
-RevokeVip = function(citizenId, reason)
-    if not citizenId then return false end
-    local onlineSrc = GetOnlineSource(citizenId)
-    if onlineSrc then
-        pcall(function()
-            local player = exports.qbx_core:GetPlayer(onlineSrc)
-            if player then
-                player.Functions.SetMetaData('vip', nil)
-                exports.ox_inventory:SetMaxWeight(onlineSrc, 100 * 1000)
-                if reason == 'expired' then
-                    Notify(onlineSrc, "warning", "Seu VIP expirou. Renove para continuar!")
-                else
-                    Notify(onlineSrc, "info", "Seu VIP foi removido.")
-                end
-            end
-        end)
-    else
-        pcall(function()
-            local off = exports.qbx_core:GetOfflinePlayer(citizenId)
-            if off then
-                off.PlayerData.metadata['vip'] = nil
-                exports.qbx_core:SaveOffline(off.PlayerData)
-            end
-        end)
-    end
-    if mysqlReady then
-        pcall(function()
-            MySQL.query("DELETE FROM mri_vip_records WHERE citizenid = ?", { citizenId })
-        end)
-    end
-    print(("[VIP Manager] Revogado de '%s' (%s)"):format(citizenId, reason or "manual"))
+    print(("[VIP Manager] '%s' concedido a '%s'"):format(tier, cid))
     return true
 end
 
 ExtendVip = function(citizenId, tier, extraDays, grantedBy)
     if not citizenId or not extraDays or not mysqlReady then return false end
-    local ok, record = pcall(function()
-        return MySQL.query.await("SELECT expires_at FROM mri_vip_records WHERE citizenid = ?", { citizenId })
-    end)
-    if not ok or not record or not record[1] then return false, "Registro não encontrado" end
+    local cid = citizenId:upper()
+    local record = MySQL.query.await("SELECT expires_at FROM mri_vip_records WHERE citizenid = ?", { cid })
+    
+    if not record or not record[1] then return false, "Registro não encontrado" end
+    
     local now  = os.time()
     local base = (record[1].expires_at and record[1].expires_at > now) and record[1].expires_at or now
     local newExp = base + (tonumber(extraDays) * 86400)
-    pcall(function()
-        MySQL.query("UPDATE mri_vip_records SET tier=?, expires_at=?, granted_by=?, updated_at=? WHERE citizenid=?",
-            { tier or 'tier1', newExp, grantedBy or 'system', now, citizenId })
-    end)
+    
+    MySQL.query("UPDATE mri_vip_records SET tier=?, expires_at=?, granted_by=?, updated_at=? WHERE citizenid=?",
+        { tier or 'tier1', newExp, grantedBy or 'system', now, cid })
 
-    -- Atualiza metadados se online para refletir mudança de plano imediata
-    local src = GetOnlineSource(citizenId)
+    local src = GetOnlineSource(cid)
     if src then 
         local player = exports.qbx_core:GetPlayer(src)
-        if player then player.Functions.SetMetaData('vip', tier) end
-        Notify(src, "success", ("VIP renovado/alterado para plano %s!"):format(tier)) 
+        if player then 
+            local oldVip = player.PlayerData.metadata['vip']
+            if oldVip and oldVip ~= 'nenhum' then pcall(function() lib.removePrincipal(src, oldVip) end) end
+            lib.addPrincipal(src, tier)
+            player.Functions.SetMetaData('vip', tier) 
+            local cfg = GetVipConfigs()
+            if cfg[tier] and cfg[tier].inventory then
+                exports.ox_inventory:SetMaxWeight(src, cfg[tier].inventory * 1000)
+            end
+            Notify(src, "success", ("VIP renovado para plano %s!"):format(tier)) 
+        end
     end
     return true
 end
 
--- ─────────────────────────────────────────────────────────────
---  THREAD — EXPIRY WATCHER (cada 5 min)
--- ─────────────────────────────────────────────────────────────
-
+-- ── THREAD — PAYCHECK TRACKER ───────────────────────────────
 CreateThread(function()
-    while true do
-        Wait(5 * 60 * 1000)
-        if mysqlReady then
-            local now = os.time()
-            local count = MySQL.scalar.await([[
-                SELECT COUNT(*) FROM mri_vip_records
-                WHERE expires_at IS NOT NULL AND expires_at <= ?
-            ]], { now })
-
-            if count and count > 0 then
-                local ok, records = pcall(function()
-                    return MySQL.query.await([[
-                        SELECT citizenid FROM mri_vip_records
-                        WHERE expires_at IS NOT NULL AND expires_at <= ?
-                    ]], { now })
-                end)
-                if ok and records and #records > 0 then
-                    for _, r in ipairs(records) do
-                        pcall(RevokeVip, r.citizenid, 'expired')
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ─────────────────────────────────────────────────────────────
---  THREAD — PAYCHECK TRACKER
--- ─────────────────────────────────────────────────────────────
-
-CreateThread(function()
-    local uptime = GetGameTimer()
-    Wait(intervalMs - (uptime % intervalMs))
+    Wait(10000) -- Espera inicial após ensure
     while true do
         if mysqlReady then
             local cfg = GetVipConfigs()
-            local ok, players = pcall(function() return exports.qbx_core:GetQBPlayers() end)
-            if ok and players then
-                local onlineByTier = {}
+            local players = exports.qbx_core:GetQBPlayers()
+            if players then
+                local now = os.time()
                 for _, player in pairs(players) do
                     local vip = player.PlayerData.metadata['vip']
                     if vip and vip ~= 'nenhum' then
-                        if not onlineByTier[vip] then onlineByTier[vip] = {} end
-                        table.insert(onlineByTier[vip], player.PlayerData.citizenid)
-                    end
-                end
+                        local salary = cfg[vip] and cfg[vip].payment or 0
+                        if salary > 0 then
+                            -- 1. Entrega dinheiro real
+                            player.Functions.AddMoney('bank', salary, "VIP Paycheck")
+                            Notify(player.PlayerData.source, "success", ("Salário VIP de R$ %s depositado!"):format(salary))
 
-                local now = os.time()
-                for tier, ids in pairs(onlineByTier) do
-                    local salary = cfg[tier] and cfg[tier].payment or 0
-                    if salary > 0 then
-                        pcall(function()
+                            -- 2. Atualiza métrica SQL
                             MySQL.query([[
                                 UPDATE mri_vip_records
-                                SET total_earned   = total_earned + ?,
+                                SET total_earned = total_earned + ?,
                                     paycheck_count = paycheck_count + 1,
-                                    updated_at     = ?
-                                WHERE citizenid IN (?)
-                            ]], { salary, now, ids })
-                        end)
+                                    updated_at = ?
+                                WHERE citizenid = ?
+                            ]], { salary, now, player.PlayerData.citizenid })
+                        end
                     end
                 end
             end
         end
-        Wait(intervalMs)
+        
+        -- Calcula espera com base no paycheckInterval global
+        local waitMin = tonumber(paycheckInterval) or 30
+        Wait(waitMin * 60000)
     end
 end)
 
--- ─────────────────────────────────────────────────────────────
---  EVENTO — PlayerLoaded (migração de VIPs legados)
--- ─────────────────────────────────────────────────────────────
-
+-- ── EVENTO — PlayerLoaded ───────────────────────────────────
 AddEventHandler('QBCore:Server:PlayerLoaded', function(player)
     if not mysqlReady then return end
-    local cid    = player.PlayerData.citizenid
-    local metaVip = player.PlayerData.metadata['vip']
-
-    local ok, record = pcall(function()
-        return MySQL.query.await("SELECT * FROM mri_vip_records WHERE citizenid = ?", { cid })
-    end)
-    local r = ok and record and record[1]
+    local cid = player.PlayerData.citizenid
+    local record = MySQL.query.await("SELECT * FROM mri_vip_records WHERE citizenid = ?", { cid })
+    local r = record and record[1]
 
     if r then
         if r.expires_at and os.time() >= r.expires_at then
-            pcall(RevokeVip, cid, 'expired')
-            Notify(player.PlayerData.source, "warning", "Seu VIP expirou. Renove para reativar!")
-            return
+            RevokeVip(cid, 'expired')
+        else
+            player.Functions.SetMetaData('vip', r.tier) 
+            lib.addPrincipal(player.PlayerData.source, r.tier)
+            local cfg = GetVipConfigs()
+            if cfg[r.tier] and cfg[r.tier].inventory then
+                exports.ox_inventory:SetMaxWeight(player.PlayerData.source, cfg[r.tier].inventory * 1000)
+            end
         end
-        if not metaVip then
-            pcall(function() player.Functions.SetMetaData('vip', r.tier) end)
-        end
-    elseif metaVip and metaVip ~= 'nenhum' then
-        pcall(function()
-            MySQL.query([[
-                INSERT IGNORE INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by)
-                VALUES (?, ?, 0, NULL, 'legacy')
-            ]], { cid, metaVip })
-        end)
-        print(("[VIP Manager] VIP legado migrado: '%s' tier='%s'"):format(cid, metaVip))
     end
 end)
 
--- ─────────────────────────────────────────────────────────────
---  EXPORTS
--- ─────────────────────────────────────────────────────────────
-
+-- ── EXPORTS ─────────────────────────────────────────────────
 exports("VipMgr_Grant",  GrantVip)
 exports("VipMgr_Revoke", RevokeVip)
 exports("VipMgr_Extend", ExtendVip)

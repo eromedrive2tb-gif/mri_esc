@@ -521,7 +521,7 @@ function adminVipPanel() {
         loading: false,
         toast: null,
         subTab: 'players', // 'players' ou 'plans'
-        plans: [],
+        get plans() { return Alpine.store('ui').plans || []; },
         searchPlans: '',
 
         modal: {
@@ -698,7 +698,7 @@ function adminVipPanel() {
             this.loading = true;
             try {
                 const res = await Nui.post('vipAdminGetPlans');
-                this.plans = Array.isArray(res) ? res : [];
+                if (Array.isArray(res)) Alpine.store('ui').plans = res;
             } catch (e) { console.error(e); }
             this.loading = false;
         },

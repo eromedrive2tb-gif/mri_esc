@@ -2,8 +2,8 @@
 --  mri_esc — Server Principal (QBX)
 -- =============================================================
 
-local paycheckInterval = 30
-local intervalMs       = paycheckInterval * 60000
+paycheckInterval = 1 -- Global para ser acessado pelos módulos
+-- intervalMs removido daqui para ser calculado dinamicamente na thread
 
 -- ─────────────────────────────────────────────────────────────
 --  HELPERS
@@ -13,9 +13,10 @@ local adminCooldowns = {}
 local playersCache   = { count = 0, timestamp = 0 }
 
 local function GetSyncedTimeLeft()
+    local interval = (tonumber(paycheckInterval) or 30) * 60000
     local uptime        = GetGameTimer()
-    local timeSinceLast = uptime % intervalMs
-    return math.floor((intervalMs - timeSinceLast) / 1000)
+    local timeSinceLast = uptime % interval
+    return math.floor((interval - timeSinceLast) / 1000)
 end
 
 local function SafeGetVipRecord(cid)
@@ -271,6 +272,7 @@ lib.callback.register('mri_esc:vip:admin:grant', function(source, data)
         return { success = false, error = "Dados inválidos" }
     end
 
+    local cid = data.citizenId:upper()
     local adminName = "Admin"
     pcall(function()
         local ap = exports.qbx_core:GetPlayer(source)
@@ -280,16 +282,17 @@ lib.callback.register('mri_esc:vip:admin:grant', function(source, data)
     end)
 
     -- Chama GrantVip do módulo se disponível, senão aplica diretamente
-    local ok, err = pcall(function()
-        if GrantVip then
-            GrantVip(data.citizenId, data.tier, data.durationDays, adminName)
-        else
-            -- Aplicação direta via QBX
-            local online = exports.qbx_core:GetPlayerByCitizenId(data.citizenId)
+    local success, result = false, "Erro interno"
+    if GrantVip then
+        success, result = GrantVip(cid, data.tier, data.durationDays, adminName)
+    else
+        -- Aplicação direta via QBX
+        local ok, err = pcall(function()
+            local online = exports.qbx_core:GetPlayerByCitizenId(cid)
             if online then
                 online.Functions.SetMetaData('vip', data.tier)
             else
-                local off = exports.qbx_core:GetOfflinePlayer(data.citizenId)
+                local off = exports.qbx_core:GetOfflinePlayer(cid)
                 if off then
                     off.PlayerData.metadata['vip'] = data.tier
                     exports.qbx_core:SaveOffline(off.PlayerData)
@@ -307,12 +310,14 @@ lib.callback.register('mri_esc:vip:admin:grant', function(source, data)
                         tier=VALUES(tier), granted_at=VALUES(granted_at),
                         expires_at=VALUES(expires_at), granted_by=VALUES(granted_by),
                         updated_at=VALUES(updated_at)
-                ]], { data.citizenId, data.tier, now, exp, adminName, now })
+                ]], { cid, data.tier, now, exp, adminName, now })
             end
-        end
-    end)
+        end)
+        success = ok
+        result = err
+    end
 
-    return ok and { success = true } or { success = false, error = tostring(err) }
+    return success and { success = true } or { success = false, error = tostring(result) }
 end)
 
 -- ─────────────────────────────────────────────────────────────
@@ -323,22 +328,23 @@ lib.callback.register('mri_esc:vip:admin:revoke', function(source, data)
     if not IsAdminPlayer(source) then return { success = false, error = "Sem permissão" } end
     if not data or not data.citizenId then return { success = false, error = "citizenId obrigatório" } end
 
+    local cid = data.citizenId:upper()
     pcall(function()
         if RevokeVip then
-            RevokeVip(data.citizenId, 'admin')
+            RevokeVip(cid, 'admin')
         else
-            local online = exports.qbx_core:GetPlayerByCitizenId(data.citizenId)
+            local online = exports.qbx_core:GetPlayerByCitizenId(cid)
             if online then
                 online.Functions.SetMetaData('vip', nil)
             else
-                local off = exports.qbx_core:GetOfflinePlayer(data.citizenId)
+                local off = exports.qbx_core:GetOfflinePlayer(cid)
                 if off then
                     off.PlayerData.metadata['vip'] = nil
                     exports.qbx_core:SaveOffline(off.PlayerData)
                 end
             end
             if MySQL and MySQL.query then
-                MySQL.query("DELETE FROM mri_vip_records WHERE citizenid = ?", { data.citizenId })
+                MySQL.query("DELETE FROM mri_vip_records WHERE citizenid = ?", { cid })
             end
         end
     end)
@@ -354,6 +360,7 @@ lib.callback.register('mri_esc:vip:admin:extend', function(source, data)
     if not IsAdminPlayer(source) then return { success = false, error = "Sem permissão" } end
     if not data or not data.citizenId or not data.days then return { success = false, error = "Dados inválidos" } end
 
+    local cid = data.citizenId:upper()
     local adminName = "Admin"
     pcall(function()
         local ap = exports.qbx_core:GetPlayer(source)
@@ -362,19 +369,19 @@ lib.callback.register('mri_esc:vip:admin:extend', function(source, data)
 
     local ok = false
     if ExtendVip then
-        local extOk = pcall(ExtendVip, data.citizenId, data.tier, data.days, adminName)
+        local extOk = pcall(ExtendVip, cid, data.tier, data.days, adminName)
         ok = extOk
     elseif MySQL and MySQL.query then
         ok = true
         pcall(function()
             local now  = os.time()
-            local recs = MySQL.query.await("SELECT expires_at FROM mri_vip_records WHERE citizenid = ?", { data.citizenId })
+            local recs = MySQL.query.await("SELECT expires_at FROM mri_vip_records WHERE citizenid = ?", { cid })
             local base = (recs and recs[1] and recs[1].expires_at and recs[1].expires_at > now)
                 and recs[1].expires_at or now
             local newExp = base + (tonumber(data.days) * 86400)
             MySQL.query(
                 "INSERT INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by, updated_at) VALUES (?, ?, 0, ?, ?, ?) ON DUPLICATE KEY UPDATE tier=VALUES(tier), expires_at=VALUES(expires_at), granted_by=VALUES(granted_by), updated_at=VALUES(updated_at)",
-                { data.citizenId, data.tier or 'tier1', newExp, adminName, now }
+                { cid, data.tier or 'tier1', newExp, adminName, now }
             )
         end)
     end
