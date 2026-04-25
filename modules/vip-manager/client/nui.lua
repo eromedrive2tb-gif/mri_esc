@@ -113,6 +113,11 @@ RegisterNUICallback("vipAdminDeletePlan", function(data, cb)
     cb(res)
 end)
 
+RegisterNUICallback("vipAdminGetItems", function(_, cb)
+    local items = lib.callback.await('mri_esc:admin:getItems', false)
+    cb(items or {})
+end)
+
 AddEventHandler('mri_esc:client:adminReady', function()
     PushAdminList()
 end)

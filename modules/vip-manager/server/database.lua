@@ -31,10 +31,17 @@ CreateThread(function()
                 `payment`    INT          NOT NULL DEFAULT 0,
                 `inventory`  INT          NOT NULL DEFAULT 0,
                 `benefits`   LONGTEXT     DEFAULT '[]',
+                `rewards`    LONGTEXT     DEFAULT '[]',
                 `updated_at` INT(11)      DEFAULT NULL,
                 PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         ]])
+
+        -- Auto-update table if column missing
+        CreateThread(function()
+            Wait(2000)
+            MySQL.query("ALTER TABLE `mri_vip_plans` ADD COLUMN IF NOT EXISTS `rewards` LONGTEXT DEFAULT '[]'")
+        end)
         
         Wait(500)
         LoadVipPlans()
@@ -54,7 +61,8 @@ function LoadVipPlans()
                 label     = p.label,
                 payment   = p.payment,
                 inventory = p.inventory,
-                benefits  = json.decode(p.benefits or "[]")
+                benefits  = json.decode(p.benefits or "[]"),
+                rewards   = json.decode(p.rewards  or "[]")
             }
         end
         VipPlansConfigs = newPlans

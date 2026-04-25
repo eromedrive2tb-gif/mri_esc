@@ -55,16 +55,26 @@ function adminVipPanel() {
         searching: false,
         loading: false,
         toast: null,
-        subTab: 'players',
+        _subTab: 'players',
+        get subTab() { return this._subTab; },
+        set subTab(val) {
+            this._subTab = val;
+            if (val === 'plans') this.loadPlans();
+        },
         get plans() { return Alpine.store('ui').plans || []; },
         searchPlans: '',
         modal: { open: false, mode: 'grant', citizenId: '', playerName: '', tier: 'tier1', duration: '30' },
-        planModal: { open: false, isNew: true, id: '', label: '', payment: 0, inventory: 0, benefits: [] },
+        planModal: { open: false, isNew: true, id: '', label: '', payment: 0, inventory: 0, benefits: [], rewards: [] },
         confirm: { open: false, citizenId: '', playerName: '' },
         get list() { return Alpine.store('ui').adminList || []; },
 
+        itemsList: [],
+        itemSearch: '',
+        itemLoading: false,
+
         init() {
             this.loadPlans();
+            this.loadItems();
             this._onAdminResult = (e) => {
                 const { operation, result } = e.detail || {};
                 if (result?.success) {
@@ -170,20 +180,28 @@ function adminVipPanel() {
             );
         },
 
-        openPlanModal(plan = null) {
+        async openPlanModal(plan = null) {
+            // Always re-fetch plans fresh from server before opening modal
+            await this.loadPlans();
+            
             if (plan) {
+                // Find the FRESHEST version of the plan from the store
+                const fresh = (Alpine.store('ui').plans || []).find(p => p.id === plan.id) || plan;
+                const rewards = Array.isArray(fresh.rewards) ? fresh.rewards.map(r => ({...r})) : [];
                 this.planModal = {
                     open: true, isNew: false,
-                    id: plan.id, label: plan.label,
-                    payment: plan.payment, inventory: plan.inventory,
-                    benefits: Array.isArray(plan.benefits) ? [...plan.benefits] : []
+                    id: fresh.id, label: fresh.label,
+                    payment: fresh.payment, inventory: fresh.inventory,
+                    benefits: Array.isArray(fresh.benefits) ? [...fresh.benefits] : [],
+                    rewards: rewards
                 };
             } else {
                 this.planModal = {
                     open: true, isNew: true,
                     id: '', label: '',
                     payment: 5000, inventory: 100,
-                    benefits: ['']
+                    benefits: [''],
+                    rewards: []
                 };
             }
         },
@@ -198,7 +216,8 @@ function adminVipPanel() {
                 label: this.planModal.label.trim(),
                 payment: parseInt(this.planModal.payment) || 0,
                 inventory: parseInt(this.planModal.inventory) || 0,
-                benefits: this.planModal.benefits.map(b => b.trim()).filter(b => b !== '')
+                benefits: this.planModal.benefits.map(b => b.trim()).filter(b => b !== ''),
+                rewards: this.planModal.rewards
             };
 
             const res = await Nui.post('vipAdminSavePlan', data);
@@ -209,6 +228,43 @@ function adminVipPanel() {
             } else {
                 this.showToast('error', res?.error || 'Erro ao salvar plano.');
             }
+        },
+
+        async loadItems() {
+            this.itemLoading = true;
+            try {
+                const res = await Nui.post('vipAdminGetItems');
+                if (Array.isArray(res)) this.itemsList = res;
+            } catch (e) { console.error(e); }
+            this.itemLoading = false;
+        },
+
+        filteredItems() {
+            const q = this.itemSearch.toLowerCase().trim();
+            if (!q) return [];
+            return this.itemsList.filter(i => 
+                i.label.toLowerCase().includes(q) || 
+                i.name.toLowerCase().includes(q)
+            ).slice(0, 10);
+        },
+
+        addReward(item) {
+            const exists = this.planModal.rewards.find(r => r.item === item.name);
+            if (exists) return;
+            this.planModal.rewards.push({
+                item: item.name,
+                label: item.label,
+                amount: 1
+            });
+            this.itemSearch = '';
+        },
+
+        removeReward(index) {
+            this.planModal.rewards.splice(index, 1);
+        },
+
+        getItemImage(itemName) {
+            return `nui://ox_inventory/web/images/${itemName}.png`;
         },
 
         async deletePlan(id) {

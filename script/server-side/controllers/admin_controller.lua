@@ -73,7 +73,7 @@ lib.callback.register('mri_esc:vip:admin:list', function(source)
     local allPlans = {}
     if VipPlansConfigs then
         for id, cfg in pairs(VipPlansConfigs) do
-            allPlans[#allPlans + 1] = { id = id, label = cfg.label, payment = cfg.payment, inventory = cfg.inventory, benefits = cfg.benefits }
+            allPlans[#allPlans + 1] = { id = id, label = cfg.label, payment = cfg.payment, inventory = cfg.inventory, benefits = cfg.benefits, rewards = cfg.rewards or {} }
         end
     end
 
@@ -276,50 +276,6 @@ lib.callback.register('mri_esc:vip:admin:search', function(source, data)
     return results
 end)
 
--- ── ADMIN: CARREGAR PLANOS ────────────────────────────────────
-lib.callback.register('mri_esc:admin:getPlans', function(source)
-    if not IsAdminPlayer(source) then return {} end
-    local plans = {}
-    for id, cfg in pairs(VipPlansConfigs or {}) do
-        plans[#plans + 1] = {
-            id = id,
-            label = cfg.label,
-            payment = cfg.payment,
-            inventory = cfg.inventory,
-            benefits = cfg.benefits
-        }
-    end
-    return plans
-end)
-
--- ── ADMIN: SALVAR PLANO ───────────────────────────────────────
-lib.callback.register('mri_esc:admin:savePlan', function(source, data)
-    if not IsAdminPlayer(source) then return { success = false, error = "Sem permissão" } end
-    if not data.id or not data.label then return { success = false, error = "Dados inválidos" } end
-    
-    local ok, err = pcall(function()
-        MySQL.query([[
-            INSERT INTO mri_vip_plans (id, label, payment, inventory, benefits, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE 
-                label=VALUES(label), payment=VALUES(payment), 
-                inventory=VALUES(inventory), benefits=VALUES(benefits), 
-                updated_at=VALUES(updated_at)
-        ]], { 
-            data.id, data.label, tonumber(data.payment) or 0, 
-            tonumber(data.inventory) or 0, json.encode(data.benefits or {}), os.time() 
-        })
-        if LoadVipPlans then LoadVipPlans() end
-    end)
-    return { success = ok, error = not ok and tostring(err) or nil }
-end)
-
--- ── ADMIN: DELETAR PLANO ──────────────────────────────────────
-lib.callback.register('mri_esc:admin:deletePlan', function(source, id)
-    if not IsAdminPlayer(source) then return { success = false, error = "Sem permissão" } end
-    local ok, err = pcall(function()
-        MySQL.query("DELETE FROM mri_vip_plans WHERE id = ?", { id })
-        if LoadVipPlans then LoadVipPlans() end
-    end)
-    return { success = ok, error = not ok and tostring(err) or nil }
-end)
+-- NOTE: getPlans, savePlan, deletePlan, getItems callbacks are registered
+-- in modules/vip-manager/server/callbacks.lua (loaded first by fxmanifest).
+-- DO NOT re-register them here or rewards data will be lost.

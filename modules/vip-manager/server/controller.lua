@@ -137,6 +137,109 @@ ExtendVip = function(citizenId, tier, extraDays, grantedBy)
     return true
 end
 
+-- ── THREAD — PAYCHECK TRACKER ───────────────────────────────
+CreateThread(function()
+    Wait(5000)
+    print("[VIP Paycheck] Thread started")
+    while true do
+        local waitMin = tonumber(paycheckInterval) or 30
+        local interval = waitMin * 60000
+        local uptime = GetGameTimer()
+        local timeUntilNext = interval - (uptime % interval)
+        
+        if timeUntilNext < 500 then timeUntilNext = interval end
+        Wait(timeUntilNext)
+
+        local ok, err = pcall(function()
+            local cfg = GetVipConfigs()
+            local players = exports.qbx_core:GetQBPlayers()
+            if not players then return end
+
+            local now = os.time()
+            for _, player in pairs(players) do
+                local vip = player.PlayerData.metadata['vip']
+                if vip and vip ~= 'nenhum' then
+                    local plan = cfg[vip]
+                    local salary = tonumber(plan and plan.payment) or 0
+                    local src = player.PlayerData.source
+
+                    -- 1. Grant Money
+                    if salary > 0 then
+                        player.Functions.AddMoney('bank', salary, "VIP Paycheck")
+                        Notify(src, "success", ("Salário VIP de R$ %s depositado!"):format(salary))
+                        print(("[VIP Paycheck] Paid $%d to %s (tier: %s)"):format(salary, player.PlayerData.citizenid, vip))
+                    end
+
+                    -- 2. Grant Item Rewards
+                    if plan and plan.rewards and #plan.rewards > 0 then
+                        for _, reward in ipairs(plan.rewards) do
+                            local qty = tonumber(reward.amount) or 0
+                            if reward.item and qty > 0 then
+                                local itemOk, itemErr = pcall(function()
+                                    exports.ox_inventory:AddItem(src, reward.item, qty)
+                                end)
+                                if itemOk then
+                                    print(("[VIP Paycheck] Gave %dx %s to %s"):format(qty, reward.item, player.PlayerData.citizenid))
+                                else
+                                    print(("[VIP Paycheck] ERROR giving item %s: %s"):format(reward.item, tostring(itemErr)))
+                                end
+                            end
+                        end
+                    end
+
+                    -- 3. Update SQL metrics
+                    if salary > 0 or (plan and plan.rewards and #plan.rewards > 0) then
+                        MySQL.query([[
+                            UPDATE mri_vip_records
+                            SET total_earned = total_earned + ?,
+                                paycheck_count = paycheck_count + 1,
+                                updated_at = ?
+                            WHERE citizenid = ?
+                        ]], { salary, now, player.PlayerData.citizenid })
+                    end
+                end
+            end
+        end)
+
+        if not ok then
+            print("[VIP Paycheck] ERROR in paycheck loop: " .. tostring(err))
+        end
+    end
+end)
+
+-- ── EVENT — PLAYER LOGIN SYNC ──────────────────────────────
+AddEventHandler('QBCore:Server:PlayerLoaded', function(player)
+    if GetResourceState('oxmysql') ~= 'started' then return end
+    local cid = player.PlayerData.citizenid
+    local src = player.PlayerData.source
+    
+    local record = MySQL.query.await("SELECT * FROM mri_vip_records WHERE citizenid = ?", { cid })
+    local r = record and record[1]
+
+    if r then
+        -- Check expiry
+        if r.expires_at and os.time() >= r.expires_at then
+            RevokeVip(cid, 'expired')
+        else
+            -- Sync status and permissions
+            player.Functions.SetMetaData('vip', r.tier) 
+            lib.addPrincipal(src, r.tier)
+            
+            -- Sync Inventory Weight
+            local cfg = GetVipConfigs()
+            if cfg[r.tier] and cfg[r.tier].inventory then
+                exports.ox_inventory:SetMaxWeight(src, cfg[r.tier].inventory * 1000)
+            end
+            
+            TriggerClientEvent('mri_esc:client:refreshVip', src)
+        end
+    else
+        -- No record, ensure no VIP status
+        player.Functions.SetMetaData('vip', 'nenhum')
+        exports.ox_inventory:SetMaxWeight(src, 100 * 1000)
+    end
+end)
+
 -- Exports
 exports("VipMgr_Grant",  GrantVip)
 exports("VipMgr_Revoke", RevokeVip)

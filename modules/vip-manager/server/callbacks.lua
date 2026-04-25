@@ -64,7 +64,8 @@ lib.callback.register('mri_esc:server:getVipData', function(source)
                         label = cfg.label,
                         payment = cfg.payment,
                         inventory = cfg.inventory,
-                        benefits = cfg.benefits
+                        benefits = cfg.benefits,
+                        rewards = cfg.rewards or {}
                     }
                 end
             end
@@ -72,4 +73,72 @@ lib.callback.register('mri_esc:server:getVipData', function(source)
             return p
         end)()
     }
+end)
+
+-- ── PLAN MANAGEMENT ──────────────────────────────────────────
+lib.callback.register('mri_esc:admin:getPlans', function(source)
+    local cfg = GetVipConfigs()
+    local list = {}
+    for id, data in pairs(cfg) do
+        if id ~= 'nenhum' then
+            table.insert(list, {
+                id        = id,
+                label     = data.label,
+                payment   = data.payment,
+                inventory = data.inventory,
+                benefits  = data.benefits,
+                rewards   = data.rewards or {}
+            })
+        end
+    end
+    return list
+end)
+
+lib.callback.register('mri_esc:admin:savePlan', function(source, data)
+    if not IsAdminPlayer(source) then return { success = false, error = "Permissão negada" } end
+    
+    local ok, err = pcall(function()
+        MySQL.query.await([[
+            INSERT INTO mri_vip_plans (id, label, payment, inventory, benefits, rewards, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                label=VALUES(label), payment=VALUES(payment),
+                inventory=VALUES(inventory), benefits=VALUES(benefits),
+                rewards=VALUES(rewards), updated_at=VALUES(updated_at)
+        ]], { 
+            data.id, data.label, data.payment, data.inventory, 
+            json.encode(data.benefits or {}), 
+            json.encode(data.rewards or {}),
+            os.time() 
+        })
+    end)
+    
+    if ok then
+        LoadVipPlans()
+        return { success = true }
+    end
+    return { success = false, error = err }
+end)
+
+lib.callback.register('mri_esc:admin:deletePlan', function(source, id)
+    if not IsAdminPlayer(source) then return { success = false, error = "Permissão negada" } end
+    MySQL.query.await("DELETE FROM mri_vip_plans WHERE id = ?", { id })
+    LoadVipPlans()
+    return { success = true }
+end)
+
+lib.callback.register('mri_esc:admin:getItems', function(source)
+    if not IsAdminPlayer(source) then return {} end
+    local items = exports.ox_inventory:Items()
+    local list = {}
+    for name, data in pairs(items) do
+        table.insert(list, {
+            name  = name,
+            label = data.label or name,
+            weight = data.weight or 0,
+            description = data.description or ""
+        })
+    end
+    table.sort(list, function(a, b) return a.label < b.label end)
+    return list
 end)

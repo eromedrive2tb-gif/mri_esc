@@ -844,6 +844,16 @@
 									<div class="pcs-val" x-text="p.inventory + ' kg'"></div>
 								</div>
 							</div>
+							<div class="pc-rewards" x-show="p.rewards && p.rewards.length > 0">
+								<div class="pcb-title">ITENS NO SALÁRIO:</div>
+								<template x-for="rw in (p.rewards || [])" :key="rw.item">
+									<div class="pc-reward-row">
+										<img :src="getItemImage(rw.item)" class="pc-reward-icon" @error="$el.style.display='none'">
+										<span class="pc-reward-label" x-text="rw.label || rw.item"></span>
+										<span class="pc-reward-qty" x-text="'x' + rw.amount"></span>
+									</div>
+								</template>
+							</div>
 							<div class="pc-benefits">
 								<div class="pcb-title">BENEFÍCIOS:</div>
 								<template x-for="b in p.benefits" :key="b">
@@ -1002,6 +1012,48 @@
 									</template>
 									<div class="btn-add-benefit" @click="planModal.benefits.push('')">
 										<i class="fa-solid fa-plus"></i> ADICIONAR BENEFÍCIO
+									</div>
+								</div>
+
+								<label class="adm-field-lbl" style="margin-top: 15px;">Itens no Salário</label>
+								<div class="rewards-editor">
+									<div class="item-search-wrapper">
+										<div class="adm-field">
+											<input type="text" class="adm-field-inp" x-model="itemSearch"
+												placeholder="Buscar item (ex: bread, water)...">
+										</div>
+										<div class="item-search-results" x-show="itemSearch.length > 0">
+											<template x-for="item in filteredItems()" :key="item.name">
+												<div class="search-item-row" @click="addReward(item)">
+													<img :src="getItemImage(item.name)" @error="$el.src='nui://ox_inventory/web/images/unknown.png'" class="search-item-icon">
+													<div class="search-item-info">
+														<span class="si-label" x-text="item.label"></span>
+														<span class="si-name" x-text="item.name"></span>
+													</div>
+												</div>
+											</template>
+										</div>
+									</div>
+
+									<div class="rewards-list">
+										<template x-for="(reward, idx) in planModal.rewards" :key="idx">
+											<div class="reward-item-card">
+												<img :src="getItemImage(reward.item)" class="reward-icon">
+												<div class="reward-info">
+													<div class="ri-name" x-text="reward.label"></div>
+													<div class="ri-qty">
+														<input type="number" x-model="reward.amount" min="1" class="ri-qty-inp">
+														<span>unid.</span>
+													</div>
+												</div>
+												<div class="btn-del-reward" @click="removeReward(idx)">
+													<i class="fa-solid fa-trash-can"></i>
+												</div>
+											</div>
+										</template>
+										<div class="reward-empty" x-show="planModal.rewards.length === 0">
+											Nenhum item adicionado ao salário
+										</div>
 									</div>
 								</div>
 							</div>
