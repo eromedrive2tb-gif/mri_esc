@@ -3,6 +3,7 @@ local open = false
 local pauseMenu = false
 local miraConfig = { ativo = false }
 local redesSociais = { instagram = "", tiktok = "", youtube = "" }
+local cachedTabs = nil
 
 Citizen.CreateThread(function()
     local savedMira = GetResourceKvpString("mri_esc:mira")
@@ -38,9 +39,12 @@ end
 CreateThread(function()
     while true do
         Wait(0)
-        DisableControlAction(0, 200, true)
-        if miraConfig and miraConfig.ativo then
-            HideHudComponentThisFrame(14)
+        DisableControlAction(0, 200, true) -- ESC (Sempre desabilitado para evitar menu nativo)
+        
+        if open or (miraConfig and miraConfig.ativo) then
+            if miraConfig and miraConfig.ativo then
+                HideHudComponentThisFrame(14)
+            end
         end
     end
 end)
@@ -62,16 +66,15 @@ local function BuildTabsConfig()
     return defaultTabs
 end
 
-local canOpenMenu = false
-
-Citizen.SetTimeout(2000, function()
-    canOpenMenu = true
-end)
-
-RegisterCommand("open_menu", function()
-    if not canOpenMenu then
-        return
+local function GetCachedTabs()
+    if not cachedTabs then
+        cachedTabs = BuildTabsConfig()
     end
+    return cachedTabs
+end
+
+local canOpenMenu = false
+RegisterCommand("open_menu", function()
 
     if not LocalPlayer.state.isLoggedIn or LocalPlayer.state.inArena or LocalPlayer.state.isDead or LocalPlayer.state.invOpen then
         return
@@ -81,7 +84,7 @@ RegisterCommand("open_menu", function()
         return
     end
 
-    if not pauseMenu and not IsPauseMenuActive() then
+    if not pauseMenu then
         local playersOn = GetPlayersOnline()
         local playerData = GetPlayerData()
         local vipData = lib.callback.await('mri_esc:server:getVipData', false)
@@ -121,7 +124,7 @@ RegisterCommand("open_menu", function()
             isAdmin   = isAdmin,
             playerX   = coords.x,
             playerY   = coords.y,
-            tabs      = BuildTabsConfig()
+            tabs      = GetCachedTabs()
         })
 
         -- Se admin, avisa os módulos para carregarem os dados administrativos
@@ -140,9 +143,10 @@ end)
 RegisterKeyMapping("open_menu", "Abrir Esc Menu", "keyboard", "ESCAPE")
 
 local function closeMenu(ignoreFrontend)
+    open = false
     SendNUIMessage({ action = "hideMenu" })
     StopScreenEffect("MenuMGSelectionIn")
-    open = false
+    StopAllScreenEffects()
     TriggerEvent("hud:Active", true)
 
     CreateThread(function()
@@ -207,6 +211,7 @@ end)
 exports('AddTab', function(tab)
     if not Config.Tabs then Config.Tabs = {} end
     table.insert(Config.Tabs, tab)
+    cachedTabs = nil
 end)
 
 exports('RemoveTab', function(tabId)
@@ -214,6 +219,7 @@ exports('RemoveTab', function(tabId)
         for i, tab in ipairs(Config.Tabs) do
             if tab.id == tabId then
                 table.remove(Config.Tabs, i)
+                cachedTabs = nil
                 break
             end
         end

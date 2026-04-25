@@ -110,8 +110,8 @@ body {
   position: fixed;
   inset: 0;
   z-index: 1;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.55);
+  /* backdrop-filter: blur(6px); -- REMOVIDO PARA PERFORMANCE */
 }
 
 /* ================================================
@@ -127,6 +127,7 @@ body {
   background-image: url('assets/blur_background.png');
   background-size: cover;
   background-position: center;
+  transform: translateZ(0);
 }
 
 /* ================================================
@@ -136,13 +137,15 @@ body {
   width: 255px;
   min-width: 255px;
   height: 100vh;
-  background: rgba(10, 10, 24, 0.65);
-  backdrop-filter: blur(8px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(8px); -- REMOVIDO PARA PERFORMANCE */
   border-right: 1px solid var(--glass-b);
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* Glowing vertical line */
@@ -221,18 +224,17 @@ body {
   justify-content: center;
   font-size: 10px;
   border: 2px solid var(--d800);
-  animation: pulse-crown 2.5s ease infinite;
+  /* animation: pulse-crown 2.5s ease infinite; -- REMOVIDO PARA PERFORMANCE */
 }
 
 @keyframes pulse-crown {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 var(--gold-glow-s);
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
   }
-
   50% {
-    box-shadow: 0 0 0 6px transparent;
+    transform: scale(1.1);
+    opacity: 0.8;
   }
 }
 
@@ -381,7 +383,7 @@ body {
   background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(255, 140, 0, 0.06));
   border-color: rgba(255, 215, 0, 0.25) !important;
   color: var(--gold) !important;
-  animation: nav-vip-pulse 3s ease infinite;
+  /* animation: nav-vip-pulse 3s ease infinite; -- REMOVIDO PARA PERFORMANCE */
   box-shadow: 0 0 18px rgba(255, 215, 0, 0.08) inset;
 }
 
@@ -436,14 +438,14 @@ body {
   margin: 6px 0 2px;
   padding: 14px 12px;
   border-radius: 12px;
-  background: var(--glass);
-  backdrop-filter: blur(8px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(8px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid rgba(255, 215, 0, 0.3);
   display: flex;
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  animation: cta-pulse 3s ease infinite;
+  /* animation: cta-pulse 3s ease infinite; -- REMOVIDO PARA PERFORMANCE */
   transition: all 0.2s;
 }
 
@@ -460,7 +462,7 @@ body {
   width: 60%;
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
-  animation: shimmer-run 3s linear infinite;
+  /* animation: shimmer-run 3s linear infinite; -- REMOVIDO PARA PERFORMANCE */
 }
 
 .svip-crown {
@@ -498,8 +500,8 @@ body {
   margin: 6px 0 2px;
   padding: 12px;
   border-radius: 12px;
-  background: var(--glass);
-  backdrop-filter: blur(8px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(8px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid rgba(255, 215, 0, 0.3);
   display: flex;
   align-items: center;
@@ -625,21 +627,13 @@ body {
   overflow-y: auto;
   background: transparent;
   position: relative;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* Subtle dot grid */
 .main-panel::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 255px;
-  right: 0;
-  background-image:
-    radial-gradient(circle, rgba(0, 148, 225, 0.04) 1px, transparent 1px);
-  background-size: 28px 28px;
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 .panel-content {
@@ -685,15 +679,15 @@ body {
 }
 
 .quick-card {
-  background: var(--glass);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(10px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid var(--glass-b);
   border-radius: 14px;
   padding: 26px 22px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .quick-card:hover {
@@ -746,8 +740,8 @@ body {
 
 .quick-card-vip {
   border-color: rgba(255, 215, 0, 0.35);
-  background: var(--glass);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(10px); -- REMOVIDO PARA PERFORMANCE */
 }
 
 .quick-card-vip:hover {
@@ -805,8 +799,8 @@ body {
 
 /* VIP Teaser */
 .vip-teaser {
-  background: var(--glass);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(10px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid rgba(255, 215, 0, 0.25);
   border-radius: 14px;
   padding: 18px 22px;
@@ -817,7 +811,7 @@ body {
   align-items: center;
   justify-content: space-between;
   transition: all 0.3s;
-  animation: teaser-pulse 4s ease infinite;
+  /* animation: teaser-pulse 4s ease infinite; -- REMOVIDO PARA PERFORMANCE */
 }
 
 @keyframes teaser-pulse {
@@ -853,7 +847,7 @@ body {
   border-radius: 50%;
   background: var(--gold);
   opacity: 0;
-  animation: p-float 7s ease infinite;
+  display: none; /* DESATIVADO PARA PERFORMANCE EXTREMA */
 }
 
 .pt1 {
@@ -957,17 +951,14 @@ body {
     transform: translateY(50px) scale(0);
     opacity: 0;
   }
-
-  10% {
-    opacity: 0.45;
+  15% {
+    opacity: 0.5;
   }
-
   85% {
     opacity: 0.2;
   }
-
   100% {
-    transform: translateY(-15px) scale(1.2);
+    transform: translateY(-20px) scale(1.2);
     opacity: 0;
   }
 }
@@ -1035,8 +1026,8 @@ body {
 
 /* VIP Active Bar */
 .vip-active-bar {
-  background: var(--glass);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(10px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid rgba(0, 148, 225, 0.25);
   border-radius: 14px;
   padding: 18px 22px;
@@ -1191,8 +1182,8 @@ body {
 
 .vstat {
   flex: 1;
-  background: var(--glass);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(10px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid var(--glass-b);
   border-radius: 12px;
   padding: 16px 18px;
@@ -1276,8 +1267,8 @@ body {
 
 /* VIP Blocks */
 .vip-block {
-  background: var(--glass);
-  backdrop-filter: blur(12px);
+  background: rgba(10, 10, 24, 0.8);
+  /* backdrop-filter: blur(12px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid var(--glass-b);
   border-radius: 14px;
   padding: 20px;
@@ -1467,8 +1458,8 @@ body {
   stroke-width: 7;
   stroke-linecap: round;
   stroke-dasharray: 327;
-  transition: stroke-dashoffset 1s linear;
-  filter: drop-shadow(0 0 5px var(--gold));
+  /* transition: stroke-dashoffset 1s linear; -- REMOVIDO PARA PERFORMANCE EM SVG */
+  /* filter: drop-shadow(0 0 5px var(--gold)); -- REMOVIDO PARA PERFORMANCE */
 }
 
 .circ-center {
@@ -1592,7 +1583,7 @@ body {
   width: 60%;
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
-  animation: shimmer-run 2.5s linear infinite;
+  /* animation: shimmer-run 2.5s linear infinite; -- REMOVIDO PARA PERFORMANCE */
 }
 
 @keyframes shimmer-run {
@@ -1716,8 +1707,8 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  background: var(--glass);
-  backdrop-filter: blur(10px);
+  background: rgba(10, 10, 24, 0.85);
+  /* backdrop-filter: blur(10px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid var(--glass-b);
   border-radius: 14px;
   padding: 18px 20px;
@@ -1726,7 +1717,7 @@ body {
 
 .mc-ok { border-color: rgba(0, 230, 118, 0.3); }
 .mc-warn { border-color: rgba(255, 170, 0, 0.3); }
-.mc-danger { border-color: rgba(255, 71, 87, 0.4); animation: danger-pulse 2s ease infinite; }
+.mc-danger { border-color: rgba(255, 71, 87, 0.6); /* animation: danger-pulse 2s ease infinite; -- REMOVIDO */ }
 .mc-gold { border-color: rgba(255, 215, 0, 0.3); }
 .mc-neutral { border-color: rgba(0, 148, 225, 0.3); }
 .mc-blue { border-color: rgba(0, 148, 225, 0.3); }
@@ -1819,7 +1810,7 @@ body {
   padding: 12px 16px;
   font-size: 12px;
   color: #FFAA00;
-  animation: warning-glow 3s ease infinite;
+  /* animation: warning-glow 3s ease infinite; -- REMOVIDO PARA PERFORMANCE */
 }
 
 @keyframes warning-glow {
@@ -1851,9 +1842,9 @@ body {
 
 .expiry-danger {
   background: linear-gradient(135deg, rgba(255, 71, 87, 0.1), rgba(180, 0, 0, 0.05));
-  border-color: rgba(255, 71, 87, 0.35);
+  border-color: rgba(255, 71, 87, 0.55);
   color: var(--red);
-  animation: danger-pulse 2s ease infinite;
+  /* animation: danger-pulse 2s ease infinite; -- REMOVIDO */
 }
 
 .expiry-danger b {
@@ -1887,8 +1878,8 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(5, 5, 10, 0.6);
-  backdrop-filter: blur(10px);
+  background: rgba(5, 5, 10, 0.9);
+  /* backdrop-filter: blur(10px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid var(--glass-b);
   border-radius: 10px;
   padding: 11px 16px;
@@ -2369,8 +2360,8 @@ body {
 
 .adm-stat {
   flex: 1;
-  background: rgba(5, 5, 15, 0.55);
-  backdrop-filter: blur(10px);
+  background: rgba(5, 5, 15, 0.85);
+  /* backdrop-filter: blur(10px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid var(--glass-b);
   border-radius: 12px;
   padding: 14px 16px;
@@ -2467,8 +2458,8 @@ body {
 
 /* Table */
 .adm-table-wrap {
-  background: rgba(5, 5, 12, 0.45);
-  backdrop-filter: blur(12px);
+  background: rgba(5, 5, 12, 0.85);
+  /* backdrop-filter: blur(12px); -- REMOVIDO PARA PERFORMANCE */
   border: 1px solid var(--glass-b);
   border-radius: 12px;
   overflow: hidden;

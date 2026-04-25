@@ -260,16 +260,25 @@ end
 CreateThread(function()
     while true do
         Wait(5 * 60 * 1000)
-        if not mysqlReady then break end
-        local ok, records = pcall(function()
-            return MySQL.query.await([[
-                SELECT citizenid FROM mri_vip_records
+        if mysqlReady then
+            local now = os.time()
+            local count = MySQL.scalar.await([[
+                SELECT COUNT(*) FROM mri_vip_records
                 WHERE expires_at IS NOT NULL AND expires_at <= ?
-            ]], { os.time() })
-        end)
-        if ok and records and #records > 0 then
-            for _, r in ipairs(records) do
-                pcall(RevokeVip, r.citizenid, 'expired')
+            ]], { now })
+
+            if count and count > 0 then
+                local ok, records = pcall(function()
+                    return MySQL.query.await([[
+                        SELECT citizenid FROM mri_vip_records
+                        WHERE expires_at IS NOT NULL AND expires_at <= ?
+                    ]], { now })
+                end)
+                if ok and records and #records > 0 then
+                    for _, r in ipairs(records) do
+                        pcall(RevokeVip, r.citizenid, 'expired')
+                    end
+                end
             end
         end
     end
@@ -287,24 +296,28 @@ CreateThread(function()
             local cfg = GetVipConfigs()
             local ok, players = pcall(function() return exports.qbx_core:GetQBPlayers() end)
             if ok and players then
+                local onlineByTier = {}
                 for _, player in pairs(players) do
                     local vip = player.PlayerData.metadata['vip']
                     if vip and vip ~= 'nenhum' then
-                        local salary = cfg[vip] and cfg[vip].payment or 0
-                        if salary > 0 then
-                            local cid = player.PlayerData.citizenid
-                            pcall(function()
-                                MySQL.query([[
-                                    INSERT INTO mri_vip_records
-                                        (citizenid, tier, granted_at, total_earned, paycheck_count, granted_by, updated_at)
-                                    VALUES (?, ?, 0, ?, 1, 'legacy-paycheck', ?)
-                                    ON DUPLICATE KEY UPDATE
-                                        total_earned   = total_earned + VALUES(total_earned),
-                                        paycheck_count = paycheck_count + 1,
-                                        updated_at     = VALUES(updated_at)
-                                ]], { cid, vip, salary, os.time() })
-                            end)
-                        end
+                        if not onlineByTier[vip] then onlineByTier[vip] = {} end
+                        table.insert(onlineByTier[vip], player.PlayerData.citizenid)
+                    end
+                end
+
+                local now = os.time()
+                for tier, ids in pairs(onlineByTier) do
+                    local salary = cfg[tier] and cfg[tier].payment or 0
+                    if salary > 0 then
+                        pcall(function()
+                            MySQL.query([[
+                                UPDATE mri_vip_records
+                                SET total_earned   = total_earned + ?,
+                                    paycheck_count = paycheck_count + 1,
+                                    updated_at     = ?
+                                WHERE citizenid IN (?)
+                            ]], { salary, now, ids })
+                        end)
                     end
                 end
             end

@@ -9,6 +9,9 @@ local intervalMs       = paycheckInterval * 60000
 --  HELPERS
 -- ─────────────────────────────────────────────────────────────
 
+local adminCooldowns = {}
+local playersCache   = { count = 0, timestamp = 0 }
+
 local function GetSyncedTimeLeft()
     local uptime        = GetGameTimer()
     local timeSinceLast = uptime % intervalMs
@@ -64,7 +67,12 @@ end
 -- ─────────────────────────────────────────────────────────────
 
 lib.callback.register('mri_esc:server:getPlayersOnline', function()
-    return #GetPlayers()
+    local now = os.time()
+    if now - playersCache.timestamp > 5 then
+        playersCache.count = #GetPlayers()
+        playersCache.timestamp = now
+    end
+    return playersCache.count
 end)
 
 lib.callback.register('mri_esc:server:getVipData', function(source)
@@ -174,7 +182,7 @@ lib.callback.register('mri_esc:vip:admin:list', function(source)
 
     -- 1. Buscar registros no mri_vip_records
     local ok, records = pcall(function()
-        return MySQL.query.await("SELECT * FROM mri_vip_records")
+        return MySQL.query.await("SELECT * FROM mri_vip_records LIMIT 500")
     end)
 
     if ok and records then
@@ -252,6 +260,12 @@ end)
 -- ─────────────────────────────────────────────────────────────
 
 lib.callback.register('mri_esc:vip:admin:grant', function(source, data)
+    local srcStr = tostring(source)
+    if adminCooldowns[srcStr] and (os.time() - adminCooldowns[srcStr]) < 3 then
+        return { success = false, error = "Aguarde 3 segundos entre ações" }
+    end
+    adminCooldowns[srcStr] = os.time()
+
     if not IsAdminPlayer(source) then return { success = false, error = "Sem permissão" } end
     if not data or not data.citizenId or not data.tier then
         return { success = false, error = "Dados inválidos" }

@@ -343,7 +343,19 @@ document.addEventListener('alpine:init', () => {
 
         formatMoney(val) {
             return Utils.formatMoney(val);
+        },
+
+        destroy() {
+            if (this.paycheckInterval) {
+                clearInterval(this.paycheckInterval);
+                this.paycheckInterval = null;
+            }
         }
+    });
+
+    window.addEventListener('mri:cleanup', () => {
+        const uiStore = Alpine.store('ui');
+        if (uiStore) uiStore.destroy();
     });
 });
 
@@ -406,6 +418,7 @@ const App = {
 
             case 'hideMenu':
                 store.isOpen = false;
+                window.dispatchEvent(new Event('mri:cleanup'));
                 break;
 
             case 'miraData':
@@ -542,8 +555,7 @@ function adminVipPanel() {
         // ── init ──────────────────────────────────────────────
         init() {
             this.loadPlans();
-            // Escuta resultados de ações (grant/revoke/extend)
-            window.addEventListener('mri:adminResult', (e) => {
+            this._onAdminResult = (e) => {
                 const { operation, result } = e.detail || {};
                 if (result?.success) {
                     const msgs = { grant: 'VIP concedido!', revoke: 'VIP revogado.', extend: 'VIP renovado!' };
@@ -551,7 +563,15 @@ function adminVipPanel() {
                 } else {
                     this.showToast('error', result?.error || 'Erro desconhecido');
                 }
-            });
+            };
+            window.addEventListener('mri:adminResult', this._onAdminResult);
+            window.addEventListener('mri:cleanup', () => this.destroy());
+        },
+
+        destroy() {
+            if (this._onAdminResult) {
+                window.removeEventListener('mri:adminResult', this._onAdminResult);
+            }
         },
 
         // ── helpers ───────────────────────────────────────────
