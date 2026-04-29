@@ -22,7 +22,9 @@ local function Notify(src, ntype, msg)
 end
 
 local function GenerateRandomPlate()
-    local plate = string.upper(lib.string.random('NNNAANNN')) -- Ex: 123AB456
+    -- Formato Mercosul: AAA1A22 (7 caracteres)
+    -- Em ox_lib: A = Letra, 1 = Numero
+    local plate = string.upper(lib.string.random('AAA1A11')) 
     local exists = MySQL.scalar.await("SELECT 1 FROM player_vehicles WHERE plate = ?", { plate })
     if exists then return GenerateRandomPlate() end
     return plate
