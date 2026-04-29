@@ -33,3 +33,5 @@ function IsAdminPlayer(source)
     
     return false
 end
+
+exports('IsAdminPlayer', IsAdminPlayer)

@@ -3,25 +3,29 @@
 -- =============================================================
 
 RegisterNUICallback("close", function(_, cb)
+    print("[vanguard_esc] NUI Callback 'close' received")
     closeMenu()
     if cb then cb({ success = true }) end
 end)
 
 RegisterNUICallback("openNativeMap", function(_, cb)
+    print("[vanguard_esc] NUI Callback 'openNativeMap' received")
     closeMenu(true)
-    Wait(100)
+    Wait(300)
     ActivateFrontendMenu(GetHashKey("FE_MENU_VERSION_MP_PAUSE"), 0, -1)
     if cb then cb({ success = true }) end
 end)
 
 RegisterNUICallback("config", function(_, cb)
+    print("[vanguard_esc] NUI Callback 'config' received")
     closeMenu(true)
-    Wait(100)
+    Wait(300)
     ActivateFrontendMenu(GetHashKey("FE_MENU_VERSION_LANDING_MENU"), 0, -1)
     if cb then cb({ success = true }) end
 end)
 
 RegisterNUICallback("consultComandos", function(_, cb)
+    print("[vanguard_esc] NUI Callback 'consultComandos' received")
     if cb then cb({ tabela = Config.Comandos or {} }) end
 end)
 

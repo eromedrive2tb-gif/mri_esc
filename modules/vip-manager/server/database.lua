@@ -10,8 +10,9 @@ CreateThread(function()
     mysqlReady = (GetResourceState('oxmysql') == 'started')
     
     if mysqlReady then
-        MySQL.query([[
-            CREATE TABLE IF NOT EXISTS `mri_vip_records` (
+        -- Consolidada a criação de tabelas e atualizações de esquema
+        local tables = {
+            [[CREATE TABLE IF NOT EXISTS `mri_vip_records` (
                 `citizenid`      VARCHAR(50)  NOT NULL,
                 `tier`           VARCHAR(50)  NOT NULL,
                 `granted_at`     INT(11)      NOT NULL,
@@ -20,12 +21,11 @@ CreateThread(function()
                 `total_earned`   INT(11)      DEFAULT 0,
                 `paycheck_count` INT(11)      DEFAULT 0,
                 `updated_at`     INT(11)      DEFAULT NULL,
+                `vehicle_plate`  VARCHAR(20)  DEFAULT NULL,
                 PRIMARY KEY (`citizenid`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        ]])
-
-        MySQL.query([[
-            CREATE TABLE IF NOT EXISTS `mri_vip_plans` (
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;]],
+            
+            [[CREATE TABLE IF NOT EXISTS `mri_vip_plans` (
                 `id`           VARCHAR(50)  NOT NULL,
                 `label`        VARCHAR(100) NOT NULL,
                 `payment`      INT          NOT NULL DEFAULT 0,
@@ -35,16 +35,16 @@ CreateThread(function()
                 `vehicle_data` LONGTEXT     DEFAULT NULL,
                 `updated_at`   INT(11)      DEFAULT NULL,
                 PRIMARY KEY (`id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        ]])
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;]],
 
-        -- Auto-update table if column missing
-        CreateThread(function()
-            Wait(2000)
-            MySQL.query("ALTER TABLE `mri_vip_plans` ADD COLUMN IF NOT EXISTS `rewards` LONGTEXT DEFAULT '[]'")
-            MySQL.query("ALTER TABLE `mri_vip_plans` ADD COLUMN IF NOT EXISTS `vehicle_data` LONGTEXT DEFAULT NULL")
-            MySQL.query("ALTER TABLE `mri_vip_records` ADD COLUMN IF NOT EXISTS `vehicle_plate` VARCHAR(20) DEFAULT NULL")
-        end)
+            "ALTER TABLE `mri_vip_plans` ADD COLUMN IF NOT EXISTS `rewards` LONGTEXT DEFAULT '[]'",
+            "ALTER TABLE `mri_vip_plans` ADD COLUMN IF NOT EXISTS `vehicle_data` LONGTEXT DEFAULT NULL",
+            "ALTER TABLE `mri_vip_records` ADD COLUMN IF NOT EXISTS `vehicle_plate` VARCHAR(20) DEFAULT NULL"
+        }
+
+        for _, query in ipairs(tables) do
+            MySQL.query(query)
+        end
         
         Wait(500)
         LoadVipPlans()
@@ -97,13 +97,24 @@ end
 --- @param cid string
 --- @return table | nil
 function SafeGetVipRecord(cid)
-    if not MySQL or not MySQL.query then return nil end
+    if not mysqlReady then return nil end
+    local cleanCid = cid:upper()
     local ok, result = pcall(function()
-        return MySQL.query.await(
-            "SELECT * FROM mri_vip_records WHERE citizenid = ?",
-            { cid }
+        return MySQL.single.await(
+            "SELECT * FROM mri_vip_records WHERE UPPER(citizenid) = ?",
+            { cleanCid }
         )
     end)
-    if ok and result then return result[1] end
+    
+    if ok and result then
+        print(("^2[vanguard_esc]^7 Database found record for %s: Tier=%s, Earned=%s"):format(cleanCid, result.tier, result.total_earned))
+        return result 
+    end
+    
+    print(("^1[vanguard_esc]^7 Database NO record found for %s"):format(cleanCid))
     return nil
 end
+
+exports('LoadVipPlans', LoadVipPlans)
+exports('GetVipConfigs', GetVipConfigs)
+exports('SafeGetVipRecord', SafeGetVipRecord)

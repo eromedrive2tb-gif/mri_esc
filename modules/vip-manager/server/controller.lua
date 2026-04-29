@@ -58,9 +58,9 @@ RevokeVip = function(citizenId, reason)
         local record = MySQL.single.await("SELECT vehicle_plate FROM mri_vip_records WHERE citizenid = ?", { cid })
         if record and record.vehicle_plate then
             print(("^1[mri_esc]^7 Removendo veículo VIP temporário (Placa: %s) do jogador %s"):format(record.vehicle_plate, cid))
-            MySQL.query("DELETE FROM player_vehicles WHERE plate = ?", { record.vehicle_plate })
+            MySQL.update("DELETE FROM player_vehicles WHERE plate = ?", { record.vehicle_plate })
         end
-        MySQL.query.await("DELETE FROM mri_vip_records WHERE citizenid = ?", { cid })
+        MySQL.update.await("DELETE FROM mri_vip_records WHERE citizenid = ?", { cid })
     end
     
     return true
@@ -114,11 +114,11 @@ GrantVip = function(citizenId, tier, durationDays, grantedBy)
             if p then
                 local props = json.encode({ plate = plate })
                 local insert = MySQL.insert.await([[
-                    INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, state, garage)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO player_vehicles (license, citizenid, vehicle, vehicle_name, hash, mods, plate, state, garage)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ]], {
-                    p.PlayerData.license, cid, plan.vehicle.model, joaat(plan.vehicle.model),
-                    props, plate, 1, "pillbox"
+                    p.PlayerData.license, cid, plan.vehicle.model, plan.vehicle.name, joaat(plan.vehicle.model),
+                    props, plate, 1, "Pillbox Garage Parking"
                 })
                 success = (insert and insert > 0)
             end
@@ -127,11 +127,11 @@ GrantVip = function(citizenId, tier, durationDays, grantedBy)
             if off then
                 local props = json.encode({ plate = plate })
                 local insert = MySQL.insert.await([[
-                    INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, state, garage)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO player_vehicles (license, citizenid, vehicle, vehicle_name, hash, mods, plate, state, garage)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ]], {
-                    off.PlayerData.license, cid, plan.vehicle.model, joaat(plan.vehicle.model),
-                    props, plate, 1, "pillbox"
+                    off.PlayerData.license, cid, plan.vehicle.model, plan.vehicle.name, joaat(plan.vehicle.model),
+                    props, plate, 1, "Pillbox Garage Parking"
                 })
                 success = (insert and insert > 0)
             end
@@ -148,7 +148,7 @@ GrantVip = function(citizenId, tier, durationDays, grantedBy)
     end
 
     if GetResourceState('oxmysql') == 'started' then
-        MySQL.query.await([[
+        MySQL.update.await([[
             INSERT INTO mri_vip_records (citizenid, tier, granted_at, expires_at, granted_by, vehicle_plate, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
@@ -164,15 +164,15 @@ end
 ExtendVip = function(citizenId, tier, extraDays, grantedBy)
     if not citizenId or not extraDays then return false end
     local cid = citizenId:upper()
-    local record = MySQL.query.await("SELECT expires_at FROM mri_vip_records WHERE citizenid = ?", { cid })
+    local record = MySQL.single.await("SELECT expires_at FROM mri_vip_records WHERE citizenid = ?", { cid })
     
-    if not record or not record[1] then return false, "Registro não encontrado" end
+    if not record then return false, "Registro não encontrado" end
     
     local now  = os.time()
-    local base = (record[1].expires_at and record[1].expires_at > now) and record[1].expires_at or now
+    local base = (record.expires_at and record.expires_at > now) and record.expires_at or now
     local newExp = base + (tonumber(extraDays) * 86400)
     
-    MySQL.query.await("UPDATE mri_vip_records SET tier=?, expires_at=?, granted_by=?, updated_at=? WHERE citizenid=?",
+    MySQL.update.await("UPDATE mri_vip_records SET tier=?, expires_at=?, granted_by=?, updated_at=? WHERE citizenid=?",
         { tier or 'tier1', newExp, grantedBy or 'system', now, cid })
 
     local src = GetOnlineSource(cid)
@@ -212,6 +212,7 @@ CreateThread(function()
             if not players then return end
 
             local now = os.time()
+            local queries = {}
             for _, player in pairs(players) do
                 local vip = player.PlayerData.metadata['vip']
                 if vip and vip ~= 'nenhum' then
@@ -237,17 +238,25 @@ CreateThread(function()
                         end
                     end
 
-                    -- 3. Update SQL metrics
+                    -- 3. Prepare Batch Update
                     if salary > 0 or (plan and plan.rewards and #plan.rewards > 0) then
-                        MySQL.query([[
-                            UPDATE mri_vip_records
-                            SET total_earned = total_earned + ?,
-                                paycheck_count = paycheck_count + 1,
-                                updated_at = ?
-                            WHERE citizenid = ?
-                        ]], { salary, now, player.PlayerData.citizenid })
+                        table.insert(queries, {
+                            query = [[
+                                UPDATE mri_vip_records
+                                SET total_earned = total_earned + ?,
+                                    paycheck_count = paycheck_count + 1,
+                                    updated_at = ?
+                                WHERE citizenid = ?
+                            ]],
+                            values = { salary, now, player.PlayerData.citizenid }
+                        })
                     end
                 end
+            end
+
+            -- 4. Execute Batch Update via Transaction
+            if #queries > 0 then
+                MySQL.transaction.await(queries)
             end
         end)
 
@@ -262,13 +271,13 @@ AddEventHandler('QBCore:Server:PlayerLoaded', function(player)
     if GetResourceState('oxmysql') ~= 'started' then return end
     local cid = player.PlayerData.citizenid
     local src = player.PlayerData.source
+    local now = os.time()
     
-    local record = MySQL.query.await("SELECT * FROM mri_vip_records WHERE citizenid = ?", { cid })
-    local r = record and record[1]
+    local r = MySQL.single.await("SELECT * FROM mri_vip_records WHERE citizenid = ?", { cid })
 
     if r then
         -- Check expiry
-        if r.expires_at and os.time() >= r.expires_at then
+        if r.expires_at and now >= r.expires_at then
             RevokeVip(cid, 'expired')
         else
             -- Sync status and permissions
@@ -284,13 +293,30 @@ AddEventHandler('QBCore:Server:PlayerLoaded', function(player)
             TriggerClientEvent('mri_esc:client:refreshVip', src)
         end
     else
-        -- No record, ensure no VIP status
-        player.Functions.SetMetaData('vip', 'nenhum')
-        exports.ox_inventory:SetMaxWeight(src, 100 * 1000)
+        -- AUTO-HEALING: If player has VIP in metadata but NO record in DB
+        local currentVip = player.PlayerData.metadata['vip'] or 'nenhum'
+        if currentVip ~= 'nenhum' then
+            print(("^2[vanguard_esc]^7 Auto-registering VIP for %s (Tier: %s)"):format(cid, currentVip))
+            MySQL.insert.await([[
+                INSERT INTO mri_vip_records (citizenid, tier, granted_at, granted_by, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+            ]], { cid, currentVip, now, 'auto-heal', now })
+            
+            -- Set weight
+            local cfg = GetVipConfigs()
+            if cfg[currentVip] and cfg[currentVip].inventory then
+                exports.ox_inventory:SetMaxWeight(src, cfg[currentVip].inventory * 1000)
+            end
+            TriggerClientEvent('mri_esc:client:refreshVip', src)
+        else
+            -- Real non-vip
+            player.Functions.SetMetaData('vip', 'nenhum')
+            exports.ox_inventory:SetMaxWeight(src, 100 * 1000)
+        end
     end
 end)
 
 -- Exports
-exports("VipMgr_Grant",  GrantVip)
-exports("VipMgr_Revoke", RevokeVip)
-exports("VipMgr_Extend", ExtendVip)
+exports("GrantVip", GrantVip)
+exports("RevokeVip", RevokeVip)
+exports("ExtendVip", ExtendVip)

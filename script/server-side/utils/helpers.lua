@@ -10,3 +10,5 @@ function GetSyncedTimeLeft()
     local timeSinceLast = uptime % interval
     return math.floor((interval - timeSinceLast) / 1000)
 end
+
+exports('GetSyncedTimeLeft', GetSyncedTimeLeft)

@@ -4,6 +4,7 @@
 
 -- Global paycheck interval accessed by modules
 paycheckInterval = 1 
+exports('GetPaycheckInterval', function() return paycheckInterval end)
 
 -- Resource startup sequence
 CreateThread(function()

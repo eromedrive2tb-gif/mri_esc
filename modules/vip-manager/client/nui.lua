@@ -114,12 +114,16 @@ RegisterNUICallback("vipAdminDeletePlan", function(data, cb)
 end)
 
 RegisterNUICallback("vipAdminGetItems", function(_, cb)
+    print("[vanguard_esc] NUI requested Items List")
     local items = lib.callback.await('mri_esc:admin:getItems', false)
+    print("[vanguard_esc] Items received from server, sending to NUI")
     cb(items or {})
 end)
 
 RegisterNUICallback("vipAdminGetVehicles", function(_, cb)
+    print("[vanguard_esc] NUI requested Vehicles List")
     local vehicles = lib.callback.await('mri_esc:admin:getVehicles', false)
+    print("[vanguard_esc] Vehicles received from server, sending to NUI")
     cb(vehicles or {})
 end)
 

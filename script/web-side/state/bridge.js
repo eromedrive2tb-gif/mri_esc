@@ -2,7 +2,7 @@
  * bridge.js - Communication and Utilities
  */
 
-const NUI_RES_NAME = 'mri_esc';
+const NUI_RES_NAME = GetParentResourceName?.() || 'vanguard_esc';
 
 const Nui = {
     async post(action, data = {}) {

@@ -8,6 +8,7 @@ redesSociais = { instagram = "", tiktok = "", youtube = "" }
 local cachedTabs = nil
 
 -- Initial Load
+print("[vanguard_esc] Client Scripts Loaded")
 CreateThread(function()
     local savedRedes = GetResourceKvpString("mri_esc:redes")
     if savedRedes then
@@ -56,6 +57,7 @@ end
 -- ── MAIN LOGIC ──────────────────────────────────────────────
 
 function closeMenu(ignoreFrontend)
+    print("[vanguard_esc] Closing Menu...")
     open = false
     SendNUIMessage({ action = "hideMenu" })
     StopScreenEffect("MenuMGSelectionIn")
@@ -66,16 +68,24 @@ function closeMenu(ignoreFrontend)
         if not ignoreFrontend then SetFrontendActive(false) end
         Wait(150)
         SetNuiFocus(false, false)
+        print("[vanguard_esc] NUI Focus Released")
         if not ignoreFrontend then SetFrontendActive(false) end
     end)
 end
 
 RegisterCommand("open_menu", function()
+    print("[vanguard_esc] Command open_menu triggered. Current state 'open':", open)
+    
     if not LocalPlayer.state.isLoggedIn or LocalPlayer.state.inArena or LocalPlayer.state.isDead or LocalPlayer.state.invOpen then
+        print("[vanguard_esc] Menu open blocked by player state")
         return
     end
 
-    if open then return end
+    if open then 
+        closeMenu()
+        return 
+    end
+    -- ...
 
     local playersOn = GetPlayersOnline()
     local playerData = GetPlayerData()
